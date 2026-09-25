@@ -1,0 +1,136 @@
+---
+/**
+ * Every page's shell: head, navigation, footer.
+ *
+ * The reveal-on-scroll effect is opt-in: the script adds a `js` class, and only
+ * then does anything get hidden. A visitor with scripting off — or one whose
+ * script fails to load — gets the whole page rather than a screen of invisible
+ * sections.
+ */
+import '@/styles/global.css';
+import Nav from '@/components/Nav.astro';
+import Footer from '@/components/Footer.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Overrides the canonical path when a page is reachable at two addresses. */
+  canonical?: string;
+  noindex?: boolean;
+  /** Structured data, already JSON-stringified by the page. */
+  schema?: string;
+}
+
+const { title, description, canonical, noindex, schema } = Astro.props;
+
+const site = Astro.site ?? new URL('https://leadwave.app');
+const canonicalUrl = new URL(canonical ?? Astro.url.pathname, site).toString();
+const fullTitle = title.includes('LeadWave') ? title : `${title} — LeadWave`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    {noindex ? <meta name="robots" content="noindex, nofollow" /> : null}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:site_name" content="LeadWave" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#4F46E5" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    {schema ? <script type="application/ld+json" set:html={schema} /> : null}
+  </head>
+
+  <body>
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-white"
+    >
+      Skip to content
+    </a>
+
+    <Nav />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+
+    <script is:inline>
+      document.documentElement.classList.add('js');
+
+      /*
+       * Reveal on scroll, done with a scroll handler rather than an
+       * IntersectionObserver.
+       *
+       * An observer only fires while an element is intersecting, so jumping
+       * from the top of the page to the bottom — an anchor link, End, a fast
+       * flick on a phone — skips every section in between and leaves them
+       * invisible for good. Measuring position on scroll cannot miss one:
+       * anything at or above the fold is revealed, whether you passed it
+       * slowly or landed beyond it.
+       */
+      const reveal = () => {
+        const targets = Array.from(document.querySelectorAll('[data-reveal]'));
+        if (targets.length === 0) return;
+
+        const show = (el) => {
+          const delay = Number(el.getAttribute('data-reveal-delay') ?? 0);
+          if (delay > 0) setTimeout(() => el.classList.add('is-visible'), delay);
+          else el.classList.add('is-visible');
+        };
+
+        let last = 0;
+        const sweep = () => {
+          last = Date.now();
+          const fold = window.innerHeight - 60;
+          for (let i = targets.length - 1; i >= 0; i -= 1) {
+            const el = targets[i];
+            if (el.getBoundingClientRect().top < fold) {
+              show(el);
+              targets.splice(i, 1);
+            }
+          }
+          if (targets.length === 0) {
+            window.removeEventListener('scroll', onScroll);
+            window.removeEventListener('resize', onScroll);
+          }
+        };
+
+        // Throttled by clock rather than by requestAnimationFrame: a tab in the
+        // background never paints, and rAF callbacks there can be deferred
+        // indefinitely — which would leave the page blank when it came back.
+        const onScroll = () => {
+          if (Date.now() - last < 80) return;
+          sweep();
+        };
+
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onScroll);
+        sweep();
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', reveal);
+      } else {
+        reveal();
+      }
+    </script>
+  </body>
+</html>

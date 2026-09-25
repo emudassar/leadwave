@@ -1,0 +1,39 @@
+{
+  "name": "leadwave",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LeadWave — Facebook Messenger automation, lead capture and AI replies for Pages.",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:api": "pnpm --filter @leadwave/api dev",
+    "dev:worker": "pnpm --filter @leadwave/api dev:worker",
+    "dev:app": "pnpm --filter @leadwave/app dev",
+    "dev:web": "pnpm --filter @leadwave/web dev",
+    "build": "pnpm --filter @leadwave/shared build && pnpm --filter @leadwave/db build && pnpm --recursive --filter \"./apps/*\" build",
+    "typecheck": "pnpm --recursive typecheck",
+    "lint": "pnpm --recursive lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "pnpm --filter @leadwave/db generate",
+    "db:migrate": "pnpm --filter @leadwave/db migrate",
+    "db:push": "pnpm --filter @leadwave/db push",
+    "db:seed": "pnpm --filter @leadwave/db seed",
+    "db:studio": "pnpm --filter @leadwave/db studio",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "db:up": "node scripts/dev-postgres.mjs start",
+    "db:init": "node scripts/dev-postgres.mjs init",
+    "db:down": "node scripts/dev-postgres.mjs stop"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "embedded-postgres": "18.4.0-beta.17",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

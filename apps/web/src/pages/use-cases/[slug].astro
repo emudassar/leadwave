@@ -1,0 +1,113 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import Base from '@/layouts/Base.astro';
+import { SIGNUP_URL } from '@/lib';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('usecases');
+  return entries.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+interface Props {
+  entry: CollectionEntry<'usecases'>;
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+
+// A couple of siblings from the same group, so the page is not a dead end.
+const related = (await getCollection('usecases'))
+  .filter((other) => other.id !== entry.id && other.data.group === entry.data.group)
+  .sort((a, b) => a.data.order - b.data.order)
+  .slice(0, 3);
+
+const schema = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: entry.data.title,
+  description: entry.data.description,
+  about: 'Facebook Messenger automation',
+  publisher: { '@type': 'Organization', name: 'LeadWave' },
+});
+---
+
+<Base title={entry.data.title} description={entry.data.description} schema={schema}>
+  <article>
+    <header class="border-b border-ink/8 px-5 pb-12 pt-16">
+      <div class="mx-auto max-w-3xl">
+        <nav class="flex items-center gap-1.5 text-[12.5px] text-faint" aria-label="Breadcrumb">
+          <a href="/use-cases" class="hover:text-ink">Use cases</a>
+          <span>/</span>
+          <span class="text-body">{entry.data.eyebrow}</span>
+        </nav>
+
+        <h1 class="display mt-4 text-[clamp(2.1rem,6vw,3.6rem)]" data-reveal>
+          {entry.data.heading}
+        </h1>
+        <p class="mt-5 max-w-2xl text-[16px] leading-relaxed text-body" data-reveal>
+          {entry.data.description}
+        </p>
+
+        <ul class="mt-7 grid gap-2 sm:grid-cols-2" data-reveal>
+          {
+            entry.data.highlights.map((point) => (
+              <li class="flex items-start gap-2 text-[13.5px] leading-relaxed text-body">
+                <svg
+                  viewBox="0 0 20 20"
+                  class="mt-0.5 size-4 shrink-0 text-brand-700"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M8.3 13.4 4.9 10l-1.4 1.4 4.8 4.8 9-9L15.9 5.8Z" />
+                </svg>
+                {point}
+              </li>
+            ))
+          }
+        </ul>
+
+        <a href={SIGNUP_URL} class="btn btn-primary mt-8">Set it up free</a>
+      </div>
+    </header>
+
+    <div class="px-5 py-14">
+      <div
+        class="prose-leadwave mx-auto max-w-2xl [&_h2]:display [&_h2]:mb-3 [&_h2]:mt-10 [&_h2]:text-[clamp(1.3rem,3vw,1.8rem)] [&_h2:first-child]:mt-0 [&_li]:mb-1.5 [&_li]:text-[15px] [&_li]:leading-relaxed [&_li]:text-body [&_p]:mb-4 [&_p]:text-[15.5px] [&_p]:leading-[1.72] [&_p]:text-body [&_strong]:font-semibold [&_strong]:text-ink [&_ul]:mb-5 [&_ul]:list-disc [&_ul]:pl-5 [&_em]:font-mono [&_em]:text-[14px] [&_em]:not-italic [&_em]:text-brand-700"
+      >
+        <Content />
+      </div>
+    </div>
+  </article>
+
+  {
+    related.length ? (
+      <section class="bg-sand px-5 py-14">
+        <div class="mx-auto max-w-5xl">
+          <h2 class="eyebrow text-faint">Keep reading</h2>
+          <div class="mt-5 grid gap-4 md:grid-cols-3">
+            {related.map((other) => (
+              <a
+                href={`/use-cases/${other.id}`}
+                class="group rounded-2xl border border-ink/8 bg-white p-5 transition-all hover:border-ink"
+              >
+                <p class="eyebrow text-brand-700">{other.data.eyebrow}</p>
+                <p class="mt-2 text-[15px] font-semibold leading-snug">{other.data.heading}</p>
+                <p class="mt-2 line-clamp-3 text-[13px] leading-relaxed text-muted">
+                  {other.data.description}
+                </p>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+    ) : null
+  }
+
+  <section class="messenger-gradient px-5 py-16 text-center text-white">
+    <h2 class="display mx-auto max-w-2xl text-[clamp(1.9rem,5.5vw,3.2rem)]">
+      About a minute to set up.<br />Free to try.
+    </h2>
+    <a href={SIGNUP_URL} class="btn btn-light mt-7 px-7 py-3.5 text-[15px]">Start free</a>
+    <p class="mt-4 text-[12.5px] text-white/65">No card. 1,000 messages a month, permanently.</p>
+  </section>
+</Base>

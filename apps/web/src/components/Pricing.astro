@@ -1,0 +1,169 @@
+---
+/**
+ * The pricing cards.
+ *
+ * Read from `PLAN_DEFINITIONS` in @leadwave/shared — the same table the API
+ * enforces. A price or a limit on this page cannot disagree with what the
+ * product actually does, because there is only one copy of it.
+ */
+import { PLANS, PLAN_DEFINITIONS, type Feature, type Plan } from '@leadwave/shared';
+import { SIGNUP_URL } from '@/lib';
+
+interface Props {
+  class?: string;
+}
+const { class: className = '' } = Astro.props;
+
+const limitLabel = (limit: number | null) =>
+  limit === null ? 'Unlimited' : new Intl.NumberFormat('en-US').format(limit);
+
+/** The handful of lines that actually decide a purchase, per plan. */
+const HIGHLIGHTS: Record<Plan, string[]> = {
+  free: [
+    '1 Facebook Page',
+    '1,000 messages a month',
+    'Comment, story and keyword triggers',
+    'Click tracking on every link',
+    'Email capture',
+    'Link-in-bio page',
+    '30 days of analytics',
+  ],
+  pro: [
+    '3 Facebook Pages',
+    'Unlimited messages, contacts and leads',
+    'Product carousel',
+    'Follow Gate',
+    'Follow-up nudge',
+    'Re-run on old posts',
+    'Schedule messages up to 7 days out',
+    'Three links in one message',
+    'No LeadWave branding',
+    'Lifetime analytics',
+  ],
+  growth: [
+    'Everything in Pro',
+    'AI replies to messages',
+    'AI replies to comments',
+    'AI goals with measured outcomes',
+    '1,000 AI credits a month',
+    'The full AI decision log',
+  ],
+  business: [
+    '10 Facebook Pages',
+    'Up to 5 team seats',
+    'Everything in Growth',
+    '2,500 AI credits a month',
+    'Google Sheets sync',
+    'Meta Ads audience export',
+    'Multiple bio pages',
+  ],
+};
+
+const featured: Plan = 'growth';
+---
+
+<div class={className}>
+  <div class="grid gap-4 lg:grid-cols-4">
+    {
+      PLANS.map((id) => {
+        const plan = PLAN_DEFINITIONS[id];
+        const isFeatured = id === featured;
+        const isAi = id === 'growth' || id === 'business';
+
+        return (
+          <div
+            class={`relative flex flex-col rounded-2xl border p-6 ${
+              isFeatured ? 'border-brand-700 bg-brand-700 text-white shadow-[0_22px_50px_-26px_rgb(16_99_92/0.75)]' : 'border-ink/8 bg-white'
+            }`}
+            data-reveal
+          >
+            {isFeatured ? (
+              <span class="absolute -top-3 left-6 rounded-full bg-amber-accent px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wide text-ink">
+                Most popular
+              </span>
+            ) : null}
+
+            <div class="flex items-center gap-2">
+              <h3 class="text-[17px] font-bold tracking-tight">{plan.name}</h3>
+              {isAi ? (
+                <span
+                  class={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                    isFeatured ? 'bg-white/20' : 'bg-brand-600/12 text-brand-700'
+                  }`}
+                >
+                  ✦ AI
+                </span>
+              ) : null}
+            </div>
+            <p class={`mt-1 min-h-10 text-[13px] leading-relaxed ${isFeatured ? 'text-white/70' : 'text-muted'}`}>
+              {plan.tagline}
+            </p>
+
+            <p class="mt-4 flex items-baseline gap-1">
+              <span class="display text-[40px]">${plan.priceMonthlyUsd}</span>
+              <span class={`text-[13px] ${isFeatured ? 'text-white/60' : 'text-faint'}`}>/mo</span>
+            </p>
+            {plan.priceYearlyUsd > 0 ? (
+              <p class={`text-[11.5px] ${isFeatured ? 'text-white/55' : 'text-faint'}`}>
+                or ${plan.priceYearlyUsd} a year — two months free
+              </p>
+            ) : (
+              <p class={`text-[11.5px] ${isFeatured ? 'text-white/55' : 'text-faint'}`}>
+                Free forever. No card.
+              </p>
+            )}
+
+            <a
+              href={SIGNUP_URL}
+              class={`btn mt-5 w-full ${isFeatured ? 'btn-light' : 'btn-primary'}`}
+            >
+              {id === 'free' ? 'Start for free' : `Get ${plan.name}`}
+            </a>
+
+            <ul class={`mt-6 space-y-2.5 border-t pt-5 ${isFeatured ? 'border-white/20' : 'border-ink/8'}`}>
+              {HIGHLIGHTS[id].map((line) => (
+                <li class="flex items-start gap-2 text-[13px] leading-relaxed">
+                  <svg
+                    viewBox="0 0 20 20"
+                    class={`mt-0.5 size-3.5 shrink-0 ${isFeatured ? 'text-white' : 'text-brand-700'}`}
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M8.3 13.4 4.9 10l-1.4 1.4 4.8 4.8 9-9L15.9 5.8Z" />
+                  </svg>
+                  <span class={isFeatured ? 'text-white/85' : 'text-body'}>{line}</span>
+                </li>
+              ))}
+            </ul>
+
+            <dl
+              class={`mt-5 space-y-1.5 border-t pt-4 text-[12px] ${
+                isFeatured ? 'border-white/20 text-white/70' : 'border-ink/8 text-muted'
+              }`}
+            >
+              <div class="flex justify-between">
+                <dt>Contacts</dt>
+                <dd class="font-mono">{limitLabel(plan.limits.contacts)}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt>Automations</dt>
+                <dd class="font-mono">{limitLabel(plan.limits.automations)}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt>AI credits</dt>
+                <dd class="font-mono">
+                  {plan.limits.aiCreditsPerMonth ? limitLabel(plan.limits.aiCreditsPerMonth) : '—'}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        );
+      })
+    }
+  </div>
+
+  <p class="mt-8 text-center text-[13px] text-muted">
+    Cancel any time, no hidden fees. Nothing rolls over and nothing overages — when
+    a limit is reached we tell you, we do not bill you.
+  </p>
+</div>

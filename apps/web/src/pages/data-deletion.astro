@@ -1,0 +1,84 @@
+---
+import Legal from '@/layouts/Legal.astro';
+import { APP_URL } from '@/lib';
+---
+
+<Legal
+  title="Data deletion"
+  description="How to delete your LeadWave data, and how someone who messaged a Page can have their data removed. Required by Meta's platform terms."
+  updated="18 September 2026"
+>
+  <p>
+    Meta requires every app on its platform to publish a clear route to deleting
+    data. This is ours. There are three situations, and they have different
+    answers.
+  </p>
+
+  <h2>You want to delete your LeadWave account</h2>
+  <ol class="mb-5 list-decimal pl-5 [&_li]:mb-1.5 [&_li]:text-[14.5px] [&_li]:leading-relaxed [&_li]:text-body">
+    <li>
+      Open <a href={`${APP_URL}/settings`}>Settings</a> in the dashboard.
+    </li>
+    <li>Disconnect each connected Page. Its access token is deleted immediately.</li>
+    <li>Delete the workspace.</li>
+  </ol>
+  <p>
+    Everything belonging to that workspace — contacts, conversations, messages,
+    leads, automations, AI knowledge, bio pages and analytics — is removed within
+    30 days. Backups are rotated on the same schedule, so a copy does not survive
+    in cold storage beyond that.
+  </p>
+
+  <h2>You want to disconnect one Page but keep the account</h2>
+  <p>
+    Disconnect it in Settings. The Page's access token is deleted immediately and
+    the data attached to that Page is removed within 30 days. Nothing belonging to
+    your other Pages is affected — in LeadWave, contacts, automations and AI
+    knowledge are scoped per Page and never shared between two.
+  </p>
+
+  <h2>You messaged a Page that uses LeadWave</h2>
+  <p>
+    If you sent a message to a business's Facebook Page and want the record of it
+    removed, the business controls that data, not us. There are two routes:
+  </p>
+  <ul>
+    <li>
+      <strong>Ask the business directly.</strong> They can delete your contact
+      record, which removes your conversation, your messages and anything captured
+      from you.
+    </li>
+    <li>
+      <strong>Remove the app's access on Facebook.</strong> In your Facebook
+      settings, under Apps and Websites, removing the app sends us a deletion
+      signal which we honour.
+    </li>
+  </ul>
+  <p>
+    You can also ask a business to stop messaging you at all. LeadWave records
+    that as an opt-out on your contact, which excludes you from every automation,
+    every AI reply and every export from that point on.
+  </p>
+
+  <h2>Deletion callback</h2>
+  <p>
+    LeadWave implements Meta's data deletion callback. When Facebook tells us a
+    person has removed the app, we delete the records associated with that
+    person's Page-scoped id and confirm it back to Facebook with a tracking
+    reference, as the platform terms require.
+  </p>
+
+  <h2>What we keep, and why</h2>
+  <p>
+    After a deletion we retain only what we are legally required to: billing
+    records for tax purposes, and a minimal audit entry recording that a deletion
+    happened and when. Neither contains message content, contact details or
+    captured leads.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Trouble with any of the above — email
+    <a href="mailto:leadwaveonline@gmail.com">leadwaveonline@gmail.com</a>.
+  </p>
+</Legal>

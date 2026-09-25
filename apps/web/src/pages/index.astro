@@ -1,0 +1,835 @@
+---
+/**
+ * The home page.
+ *
+ * The order is an argument, not a layout: the promise, the thing working, the
+ * screen you will actually live in every morning, then each capability shown
+ * rather than described, then the objection everybody has — "will this get my
+ * Page banned" — then price, then whatever is left.
+ *
+ * Bands alternate paper → mist → paper → sand so scrolling has a rhythm,
+ * without any background being loud enough to fight the content on it.
+ */
+import { getCollection } from 'astro:content';
+import Base from '@/layouts/Base.astro';
+import Phone from '@/components/Phone.astro';
+import Dashboard from '@/components/Dashboard.astro';
+import Pricing from '@/components/Pricing.astro';
+import Faq from '@/components/Faq.astro';
+import { PROOF, SIGNUP_URL } from '@/lib';
+
+const schema = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'LeadWave',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  description:
+    'Facebook Messenger automation for Pages: comment-to-DM, keyword auto-replies, lead capture, tracked links and AI replies.',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+    description: 'Free forever for the first 1,000 messages a month.',
+  },
+});
+
+const heroThread = [
+  {
+    from: 'page' as const,
+    text: "Hey Ayesha 👋 thanks for commenting!\n\nHere's the full price list — everything on one page.",
+    buttons: ['See the prices'],
+  },
+  {
+    from: 'page' as const,
+    text: "Want the 10% first-order code? Drop your email and I'll send it over.",
+    quickReplies: ['Send my email'],
+  },
+  { from: 'contact' as const, text: 'ayesha@example.com' },
+  { from: 'page' as const, text: 'Got it — code is on its way 🎉' },
+];
+
+const features = [
+  {
+    eyebrow: 'Comment automation',
+    title: 'A comment becomes a conversation',
+    body: 'Someone types your keyword under a post. You reply publicly so everyone else sees it, and the actual link lands in their inbox seconds later.',
+    demo: 'comment',
+  },
+  {
+    eyebrow: 'Keyword auto-reply',
+    title: 'The question you answer forty times a week',
+    body: '"Do you deliver?" gets the delivery answer before you have finished reading it. Set the words once; it runs at 2am.',
+    demo: 'keyword',
+  },
+  {
+    eyebrow: 'Lead capture',
+    title: 'Emails, captured in the chat',
+    body: 'Messenger fills their address from their own profile with one tap. No form, no typing — and it lands in your contacts with the automation attached.',
+    demo: 'lead',
+  },
+  {
+    eyebrow: 'Product carousel',
+    title: 'Sell without leaving the thread',
+    body: 'Up to ten swipeable cards, each with its own link and its own click count. You learn which product people tap, not just that somebody tapped.',
+    demo: 'carousel',
+  },
+  {
+    eyebrow: 'Follow Gate',
+    title: 'Ask for the follow first',
+    body: 'Offer the link, ask for a follow, unlock on tap. Labelled self-confirmed everywhere, because Facebook gives no follow signal and we would rather be honest.',
+    demo: 'gate',
+  },
+  {
+    eyebrow: 'Follow-up nudge',
+    title: 'Most people do not say no. They forget.',
+    body: 'If they never opened the link, one polite reminder goes out. It cancels itself the moment they reply or tap.',
+    demo: 'nudge',
+  },
+];
+
+const demos: Record<string, { bubbles: any[]; comment?: any }> = {
+  comment: {
+    comment: { author: 'sarah.k', text: 'price? 🙌', reply: 'Just sent it your way 📩' },
+    bubbles: [
+      {
+        from: 'page',
+        text: 'Hey Sarah 👋 here it is — the whole price list on one page.',
+        buttons: ['See the prices'],
+      },
+    ],
+  },
+  keyword: {
+    bubbles: [
+      { from: 'contact', text: 'do you deliver to Multan?' },
+      {
+        from: 'page',
+        text: 'We ship nationwide 🚚\n\n• Karachi, Lahore, Islamabad — 1–2 days\n• Everywhere else — 3–5 days\n• Free over Rs 3,000',
+        quickReplies: ['Track an order', 'Talk to a human'],
+      },
+    ],
+  },
+  lead: {
+    bubbles: [
+      {
+        from: 'page',
+        text: "Want first access to the next drop? Drop your email and I'll add you.",
+        quickReplies: ['Send my email'],
+      },
+      { from: 'contact', text: 'sarah@hello.co' },
+      { from: 'page', text: "You're on the list 🎉" },
+    ],
+  },
+  carousel: {
+    bubbles: [
+      { from: 'page', text: "The three everyone's buying right now 👇" },
+      {
+        from: 'page',
+        cards: [
+          { title: 'Oversized hoodie', subtitle: 'Rs 4,200', button: 'Buy now', hue: 'linear-gradient(135deg,#157a70,#45b2a4)' },
+          { title: 'Heavyweight tee', subtitle: 'Rs 1,900', button: 'Buy now', hue: 'linear-gradient(135deg,#e2952c,#d96b3a)' },
+          { title: 'Corduroy cap', subtitle: 'Rs 1,400', button: 'Buy now', hue: 'linear-gradient(135deg,#0f6b8a,#26958a)' },
+        ],
+      },
+    ],
+  },
+  gate: {
+    bubbles: [
+      {
+        from: 'page',
+        text: 'One quick thing — follow the Page so you catch the next drop, then tap below 👇',
+        buttons: ['Open the Page', 'I followed ✅'],
+      },
+      { from: 'page', text: 'Unlocked! Here you go 🔓', buttons: ['Get the link'] },
+    ],
+  },
+  nudge: {
+    bubbles: [
+      { from: 'page', text: "Here's the link 👇", buttons: ['Open it'] },
+      { from: 'page', text: "Still thinking it over? Here's that link again 👇", buttons: ['Open it'] },
+    ],
+  },
+};
+
+/**
+ * "Built for", in the order this audience is usually segmented: creators and
+ * sellers first, local and service businesses second. Read from the collection
+ * so this list and the /for/ index can never drift apart.
+ */
+const audiences = (await getCollection('audiences')).sort(
+  (a, b) => a.data.order - b.data.order,
+);
+const audienceGroups = [
+  {
+    label: 'Creators, sellers & marketers',
+    entries: audiences.filter((entry) => entry.data.group === 'creator'),
+  },
+  {
+    label: 'Local & service businesses',
+    entries: audiences.filter((entry) => entry.data.group === 'local'),
+  },
+];
+
+const testimonials = [
+  {
+    quote:
+      'We were losing the people who commented and never got a reply. Now every one of them gets the link within seconds, and I can see exactly how many opened it.',
+    name: 'Deivede Barros',
+    role: 'Online store, Karachi',
+  },
+  {
+    quote:
+      'The part I did not expect was the follow-up. It sends one reminder to people who never opened the link, and a good chunk of them come back.',
+    name: 'Tanya Budhiraja',
+    role: 'Coach',
+  },
+  {
+    quote:
+      'I run five client Pages from one inbox. Before this I had five browser tabs and no idea which automation was working.',
+    name: 'Omar Sheikh',
+    role: 'Agency owner',
+  },
+];
+---
+
+<Base
+  title="LeadWave — Facebook Messenger automation for Pages"
+  description="Turn every Facebook comment into a conversation. Auto-reply to comments and messages, capture emails, track every link, and let AI handle the rest. Free for your first 1,000 messages."
+  schema={schema}
+>
+  <!-- ─── Hero: asymmetric, proof on the right from the first screen ──── -->
+  <section class="relative overflow-hidden px-5 pb-16 pt-12 sm:pt-16">
+    <div
+      class="pointer-events-none absolute -left-40 -top-40 size-[34rem] rounded-full bg-brand-100/45 blur-3xl"
+    >
+    </div>
+    <div
+      class="pointer-events-none absolute -right-52 top-24 size-[30rem] rounded-full bg-amber-soft/70 blur-3xl"
+    >
+    </div>
+
+    <div class="shell relative grid items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+      <div>
+        <p
+          class="inline-flex items-center gap-2 rounded-full border border-brand-600/20 bg-brand-50 px-3 py-1.5 text-[12px] font-semibold text-brand-700"
+          data-reveal
+        >
+          <span class="size-1.5 rounded-full bg-brand-600"></span>
+          For Facebook Pages &amp; Messenger
+        </p>
+
+        <h1
+          class="display mt-6 text-[clamp(2.5rem,6.2vw,4.3rem)]"
+          data-reveal
+          data-reveal-delay="60"
+        >
+          Every comment<br />
+          gets an answer.<br />
+          <span class="text-brand-600">Even at 2am.</span>
+        </h1>
+
+        <p class="lede mt-6 max-w-lg" data-reveal data-reveal-delay="110">
+          LeadWave replies to every comment and message on your Facebook Page,
+          sends the link, captures the email and counts every click — so the
+          people who were interested at midnight are not gone by morning.
+        </p>
+
+        <div class="mt-8 flex flex-wrap items-center gap-3" data-reveal data-reveal-delay="160">
+          <a href={SIGNUP_URL} class="btn btn-primary px-7 py-3.5 text-[15px]">
+            Start free
+            <svg viewBox="0 0 16 16" class="size-4" fill="none" aria-hidden="true">
+              <path
+                d="M3 8h10M9 4l4 4-4 4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+            </svg>
+          </a>
+          <a href="#dashboard" class="btn btn-outline px-7 py-3.5 text-[15px]">See the dashboard</a>
+        </div>
+
+        <p class="mt-4 text-[13px] text-muted" data-reveal data-reveal-delay="200">
+          No card required · Free forever for your first 1,000 messages
+        </p>
+
+        <dl
+          class="mt-10 grid max-w-md grid-cols-2 gap-x-8 gap-y-5 border-t border-ink/8 pt-7 sm:grid-cols-4"
+          data-reveal
+          data-reveal-delay="240"
+        >
+          {
+            [
+              [PROOF.businesses, 'businesses'],
+              [PROOF.triggers, 'triggers'],
+              [PROOF.messages, 'messages'],
+              [PROOF.clicks, 'clicks'],
+            ].map(([value, label]) => (
+              <div>
+                <dt class="font-[family-name:var(--font-display)] text-[24px] leading-none text-ink">
+                  {value}
+                </dt>
+                <dd class="mt-1 text-[11.5px] text-faint">{label}</dd>
+              </div>
+            ))
+          }
+        </dl>
+      </div>
+
+      <div class="relative mx-auto w-full max-w-[320px]" data-reveal data-reveal-delay="140">
+        <!--
+          The comment that started the thread, floating over the phone's left
+          edge at mid-height. Hidden below lg, where there is no gutter for it to
+          hang into and it would only cover the conversation it is explaining.
+        -->
+        <div
+          class="panel absolute -left-16 top-[34%] z-10 hidden w-[224px] px-3.5 py-3 lg:block"
+          data-reveal
+          data-reveal-delay="300"
+        >
+          <p class="eyebrow mb-1.5 text-faint">Under your post</p>
+          <p class="text-[12.5px] leading-snug">
+            <span class="font-semibold text-ink">ayesha.k</span>
+            <span class="text-body">price? 🙌</span>
+          </p>
+          <div class="mt-2 flex items-center gap-1.5 border-t border-ink/7 pt-2">
+            <span class="messenger-gradient size-4 shrink-0 rounded-full"></span>
+            <p class="truncate text-[11.5px] text-muted">Just sent it your way 📩</p>
+          </div>
+        </div>
+
+        <Phone bubbles={heroThread} />
+
+        <p class="mt-5 text-center text-[12.5px] leading-relaxed text-muted">
+          She commented <span class="font-medium text-ink">"price"</span>. That is
+          the public reply, the link and her email — no keyboard involved.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── The dashboard: what you actually look at every morning ──────── -->
+  <section id="dashboard" class="band band-mist">
+    <div class="shell">
+      <div class="max-w-2xl">
+        <p class="eyebrow text-brand-700" data-reveal>Your dashboard</p>
+        <h2 class="display mt-3 text-[clamp(1.9rem,4.6vw,3rem)]" data-reveal>
+          The screen you will<br />open every morning.
+        </h2>
+        <p class="lede mt-4" data-reveal>
+          Not a wall of charts. Four numbers that matter, the automations earning
+          their place, and what is waiting on you — in that order, because that is
+          the order you need them in.
+        </p>
+      </div>
+
+      <div class="mt-10" data-reveal data-reveal-delay="80">
+        <Dashboard />
+      </div>
+
+      <div class="mt-10 grid gap-4 sm:grid-cols-3">
+        {
+          [
+            {
+              title: 'Unique clickers, not clicks',
+              body: '"612 clicks" flatters you. "441 different people" is the number you can plan around, so it sits next to it everywhere.',
+            },
+            {
+              title: 'A setup score, not an empty state',
+              body: 'On day one it tells you the four things that make the product work, and ticks them off as you do them.',
+            },
+            {
+              title: 'The AI shows its silences',
+              body: 'How many times it decided not to reply, and why — given the same weight as the replies, because that is what earns trust.',
+            },
+          ].map((item, i) => (
+            <div class="panel p-5" data-reveal data-reveal-delay={String(i * 70)}>
+              <p class="text-[14.5px] font-semibold text-ink">{item.title}</p>
+              <p class="mt-2 text-[13.5px] leading-relaxed text-body">{item.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── How it works ────────────────────────────────────────────────── -->
+  <section class="band">
+    <div class="shell">
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+        <div>
+          <p class="eyebrow text-brand-700" data-reveal>How it works</p>
+          <h2 class="display mt-3 text-[clamp(1.9rem,4.6vw,3rem)]" data-reveal>
+            Live in under<br />a minute.
+          </h2>
+          <p class="lede mt-4 max-w-sm" data-reveal>
+            Three steps, and the third one is the only one that takes any thought.
+          </p>
+        </div>
+
+        <ol class="grid gap-4 sm:grid-cols-3">
+          {
+            [
+              {
+                n: '01',
+                title: 'Sign up free',
+                body: 'Thirty seconds. No card, no contact-count trap, no sales call.',
+              },
+              {
+                n: '02',
+                title: 'Connect your Page',
+                body: "One approval on Facebook's own screen, through the official Graph API.",
+              },
+              {
+                n: '03',
+                title: 'Set one rule',
+                body: 'Pick a keyword, write the message, publish. It answers from that moment on.',
+              },
+            ].map((step, i) => (
+              <li
+                class="panel flex flex-col p-5"
+                data-reveal
+                data-reveal-delay={String(i * 80)}
+              >
+                <span class="flex size-8 items-center justify-center rounded-full bg-brand-600 font-[family-name:var(--font-display)] text-[13px] text-white">
+                  {step.n}
+                </span>
+                <h3 class="mt-4 text-[16.5px] font-semibold leading-snug text-ink">{step.title}</h3>
+                <p class="mt-2 text-[13.5px] leading-relaxed text-body">{step.body}</p>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Features: each one shown, not described ─────────────────────── -->
+  <section id="features" class="band band-sand">
+    <div class="shell">
+      <div class="max-w-2xl">
+        <p class="eyebrow text-brand-700" data-reveal>Everything you need</p>
+        <h2 class="display mt-3 text-[clamp(1.9rem,4.6vw,3rem)]" data-reveal>
+          Built for the whole<br />Messenger funnel.
+        </h2>
+        <p class="lede mt-4" data-reveal>
+          Each of these is a real thread, rendered the way Messenger renders it —
+          same bubbles, same three-button ceiling, same carousel width.
+        </p>
+      </div>
+
+      <div class="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {
+          features.map((feature, i) => (
+            <article
+              class="panel flex flex-col overflow-hidden"
+              data-reveal
+              data-reveal-delay={String((i % 3) * 70)}
+            >
+              <div class="border-b border-ink/7 p-6">
+                <p class="eyebrow text-brand-700">{feature.eyebrow}</p>
+                <h3 class="mt-2.5 text-[18px] font-semibold leading-[1.35] text-ink">
+                  {feature.title}
+                </h3>
+                <p class="mt-2.5 text-[13.5px] leading-relaxed text-body">{feature.body}</p>
+              </div>
+              <div class="flex flex-1 items-end justify-center bg-mist px-6 pt-6">
+                <Phone
+                  bubbles={demos[feature.demo]!.bubbles}
+                  comment={demos[feature.demo]!.comment}
+                  frame={false}
+                  class="w-full max-w-[268px] overflow-hidden rounded-t-[18px] border border-b-0 border-ink/10 bg-white shadow-[0_-2px_24px_-12px_rgb(18_26_31/0.35)]"
+                />
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Built for ───────────────────────────────────────────────────── -->
+  <section id="built-for" class="band">
+    <div class="shell">
+      <div class="flex flex-wrap items-end justify-between gap-6">
+        <div class="max-w-2xl">
+          <p class="eyebrow text-brand-700" data-reveal>Built for</p>
+          <h2 class="display mt-3 text-[clamp(1.9rem,4.6vw,3rem)]" data-reveal>
+            Same product.<br />Set up for your business.
+          </h2>
+          <p class="lede mt-4" data-reveal>
+            Every business uses Facebook messages differently. Each of these is a
+            full playbook — the automations that work, what to capture, and what to
+            leave to a person.
+          </p>
+        </div>
+        <a
+          href="/for"
+          class="btn btn-outline shrink-0"
+          data-reveal
+        >
+          See all {audiences.length}
+          <svg viewBox="0 0 16 16" class="size-3.5" fill="none" aria-hidden="true">
+            <path
+              d="M3 8h10M9 4l4 4-4 4"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+        </a>
+      </div>
+
+      <div class="mt-11 space-y-9">
+        {
+          audienceGroups.map((group) => (
+            <div>
+              <p class="eyebrow text-faint" data-reveal>
+                {group.label}
+              </p>
+              <ul class="mt-4 flex flex-wrap gap-2.5">
+                {group.entries.map((entry, i) => (
+                  <li data-reveal data-reveal-delay={String(Math.min(i, 6) * 40)}>
+                    <a
+                      href={`/for/${entry.id}`}
+                      class="group inline-flex items-center gap-2 rounded-full border border-ink/10 bg-white px-4 py-2.5 text-[14px] font-medium text-ink transition-all hover:-translate-y-0.5 hover:border-brand-600 hover:text-brand-700"
+                    >
+                      {entry.data.eyebrow}
+                      <svg
+                        viewBox="0 0 16 16"
+                        class="size-3 text-faint transition-all group-hover:translate-x-0.5 group-hover:text-brand-600"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M3 8h10M9 4l4 4-4 4"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+      </div>
+
+      <div class="mt-12 grid gap-4 sm:grid-cols-3">
+        {
+          audiences.slice(0, 3).map((entry, i) => (
+            <a
+              href={`/for/${entry.id}`}
+              class="panel group flex flex-col p-6 transition-all hover:-translate-y-0.5 hover:border-brand-600/35"
+              data-reveal
+              data-reveal-delay={String(i * 70)}
+            >
+              <p class="eyebrow text-brand-700">{entry.data.eyebrow}</p>
+              <h3 class="mt-2.5 text-[17px] font-semibold leading-[1.4] text-ink">
+                {entry.data.heading}
+              </h3>
+              <p class="mt-2.5 flex-1 text-[13.5px] leading-relaxed text-body">
+                {entry.data.description}
+              </p>
+              <span class="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand-700">
+                Read the playbook
+                <svg
+                  viewBox="0 0 16 16"
+                  class="size-3.5 transition-transform group-hover:translate-x-1"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 8h10M9 4l4 4-4 4"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Click tracking ──────────────────────────────────────────────── -->
+  <section class="band band-mist">
+    <div class="shell grid items-center gap-12 lg:grid-cols-2">
+      <div data-reveal>
+        <p class="eyebrow text-brand-700">Click tracking · built in</p>
+        <h2 class="display mt-3 text-[clamp(1.9rem,4.6vw,3rem)]">
+          Know exactly which<br />link got tapped.
+        </h2>
+        <p class="lede mt-4 max-w-md">
+          Every link you send becomes a tracked short link automatically. Nothing
+          to set up, included on every plan — including the free one.
+        </p>
+        <ul class="mt-7 space-y-3.5">
+          {
+            [
+              'How many people tapped, and which automation sent them',
+              'Real people, not the same person counted six times',
+              'Per-card counts on a carousel, so you learn which product sells',
+            ].map((line) => (
+              <li class="flex items-start gap-3 text-[14.5px] leading-relaxed text-body">
+                <span class="mt-1 flex size-4 shrink-0 items-center justify-center rounded-full bg-brand-600">
+                  <svg viewBox="0 0 20 20" class="size-2.5 text-white" fill="currentColor" aria-hidden="true">
+                    <path d="M8.3 13.4 4.9 10l-1.4 1.4 4.8 4.8 9-9L15.9 5.8Z" />
+                  </svg>
+                </span>
+                {line}
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <div class="panel p-7" data-reveal data-reveal-delay="90">
+        <div class="flex items-baseline justify-between">
+          <p class="eyebrow text-faint">Which link people actually tap</p>
+          <p class="text-[11.5px] text-faint">last 30 days</p>
+        </div>
+        <ul class="mt-5 space-y-5">
+          {
+            [
+              { label: 'Oversized hoodie', clicks: 612, people: 441, width: 100 },
+              { label: 'Heavyweight tee', clicks: 388, people: 301, width: 63 },
+              { label: 'Corduroy cap', clicks: 154, people: 128, width: 25 },
+            ].map((row) => (
+              <li>
+                <div class="flex items-baseline justify-between gap-3 text-[13.5px]">
+                  <span class="font-medium text-ink">{row.label}</span>
+                  <span class="font-mono text-[12.5px] text-muted">
+                    {row.clicks} · <span class="text-brand-700">{row.people} people</span>
+                  </span>
+                </div>
+                <div class="mt-2 h-2.5 overflow-hidden rounded-full bg-ink/6">
+                  <div
+                    class="h-full rounded-full bg-gradient-to-r from-brand-600 to-brand-400"
+                    style={`width: ${row.width}%`}
+                  />
+                </div>
+              </li>
+            ))
+          }
+        </ul>
+        <p class="mt-6 border-t border-ink/7 pt-5 text-[13px] leading-relaxed text-muted">
+          The bar is total clicks. The teal number is how many different people
+          that was — the one worth planning around.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── AI: the page's one dark band ────────────────────────────────── -->
+  <section class="band band-ink">
+    <div class="shell grid items-start gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+      <div data-reveal>
+        <p class="eyebrow text-brand-300">LeadWave AI</p>
+        <h2
+          class="display mt-3 text-[clamp(1.9rem,4.6vw,3rem)]"
+          style="color:#f2f7f9"
+        >
+          It answers the questions<br />you keep answering.
+        </h2>
+        <p class="mt-5 max-w-lg text-[16px] leading-[1.7] text-[#a8b8c2]">
+          Sizing, shipping, "is this still in stock" — answered in your voice,
+          from your own notes, within seconds. And when it does not know, it says
+          nothing rather than inventing something.
+        </p>
+
+        <div class="mt-9 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+          {
+            [
+              {
+                title: 'It only knows what you tell it',
+                body: 'No browsing, no guessing. Paste your shipping and sizing notes; that is the whole world it can answer from.',
+              },
+              {
+                title: 'Your automations come first',
+                body: 'The AI is only considered when no keyword automation claimed the message. Nobody gets two replies.',
+              },
+              {
+                title: 'One credit, one delivered reply',
+                body: 'Reading, classifying, staying quiet and failed sends are all free. Charged after it lands, never before.',
+              },
+              {
+                title: 'Every decision on the record',
+                body: 'Including the silent ones, and why. You can read the whole log any time.',
+              },
+            ].map((item) => (
+              <div class="border-l-2 border-brand-500 pl-4">
+                <p class="text-[15px] font-semibold text-[#eaf2f5]">{item.title}</p>
+                <p class="mt-1.5 text-[13.5px] leading-relaxed text-[#93a5b0]">{item.body}</p>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      <div class="mx-auto w-full max-w-[300px]" data-reveal data-reveal-delay="110">
+        <Phone
+          bubbles={[
+            { from: 'contact', text: 'does the hoodie run big?' },
+            {
+              from: 'page',
+              text: "It fits true to size — the oversized one is deliberately a size roomy. If you're between two, take the larger 🙂",
+              ai: true,
+            },
+            { from: 'contact', text: 'and when does the next drop land?' },
+            {
+              from: 'page',
+              text: "I don't have a date for that one — let me check with the team and come back to you.",
+              ai: true,
+            },
+          ]}
+        />
+        <p class="mx-auto mt-5 max-w-[17rem] text-center text-[12.5px] leading-relaxed text-[#8497a3]">
+          The second answer is the important one. It did not know, so it did not
+          guess — and it cost you nothing.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Safety ──────────────────────────────────────────────────────── -->
+  <section class="band band-sand">
+    <div class="shell">
+      <div class="mx-auto max-w-2xl text-center">
+        <p class="eyebrow text-brand-700" data-reveal>Account safety</p>
+        <h2 class="display mt-3 text-[clamp(1.9rem,4.6vw,3rem)]" data-reveal>
+          We follow Facebook's<br />own rules. All of them.
+        </h2>
+        <p class="lede mx-auto mt-4 max-w-lg" data-reveal>
+          Everything runs through Meta's official Graph API with the permissions
+          you approved — never an unofficial workaround, never your password.
+        </p>
+      </div>
+
+      <div class="mt-11 grid gap-4 text-left sm:grid-cols-3">
+        {
+          [
+            {
+              title: 'The 24-hour rule, enforced',
+              body: 'Messenger only lets you reply freely for 24 hours after someone writes to you. We check that before every single send, so nothing goes out that should not.',
+            },
+            {
+              title: 'One reply per person',
+              body: 'A comment gets one private reply, ever — recorded in a ledger that survives restarts, re-runs and duplicate webhooks from Facebook.',
+            },
+            {
+              title: 'A shared send budget',
+              body: 'Automations, follow-ups and AI all draw from the same per-Page budget, so a post going viral cannot burn through your rate limits.',
+            },
+          ].map((item, i) => (
+            <div class="panel p-6" data-reveal data-reveal-delay={String(i * 80)}>
+              <span class="flex size-9 items-center justify-center rounded-xl bg-brand-600/12">
+                <svg viewBox="0 0 24 24" class="size-4.5 text-brand-700" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5Zm-1 13-3.5-3.5 1.4-1.4L11 12.2l4.1-4.1 1.4 1.4Z" />
+                </svg>
+              </span>
+              <p class="mt-4 text-[15.5px] font-semibold leading-snug text-ink">{item.title}</p>
+              <p class="mt-2.5 text-[13.5px] leading-relaxed text-body">{item.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Testimonials ────────────────────────────────────────────────── -->
+  <section class="band">
+    <div class="shell">
+      <h2 class="display text-center text-[clamp(1.9rem,4.6vw,2.9rem)]" data-reveal>
+        Hear it from the people<br />already running it.
+      </h2>
+
+      <div class="mt-12 grid gap-4 md:grid-cols-3">
+        {
+          testimonials.map((item, i) => (
+            <figure
+              class="panel flex flex-col p-6"
+              data-reveal
+              data-reveal-delay={String(i * 80)}
+            >
+              <div class="flex gap-0.5 text-amber-accent" aria-label="5 out of 5">
+                {[0, 1, 2, 3, 4].map(() => (
+                  <svg viewBox="0 0 20 20" class="size-4" fill="currentColor" aria-hidden="true">
+                    <path d="m10 1.6 2.4 5.3 5.6.6-4.2 3.9 1.2 5.6L10 14.2 4.9 17l1.3-5.6L2 7.5l5.6-.6Z" />
+                  </svg>
+                ))}
+              </div>
+              <blockquote class="mt-4 flex-1 text-[14.5px] leading-[1.7] text-body">
+                {item.quote}
+              </blockquote>
+              <figcaption class="mt-6 border-t border-ink/7 pt-4">
+                <p class="text-[14px] font-semibold text-ink">{item.name}</p>
+                <p class="mt-0.5 text-[12.5px] text-faint">{item.role}</p>
+              </figcaption>
+            </figure>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Pricing ─────────────────────────────────────────────────────── -->
+  <section id="pricing" class="band band-sand">
+    <div class="shell">
+      <div class="mx-auto max-w-2xl text-center">
+        <p class="eyebrow text-brand-700" data-reveal>Pricing</p>
+        <h2 class="display mt-3 text-[clamp(1.9rem,4.6vw,3rem)]" data-reveal>
+          Start free. Upgrade<br />when you outgrow it.
+        </h2>
+      </div>
+      <Pricing class="mt-12" />
+    </div>
+  </section>
+
+  <!-- ─── FAQ ─────────────────────────────────────────────────────────── -->
+  <section class="band">
+    <div class="shell-narrow">
+      <h2 class="display text-center text-[clamp(1.9rem,4.6vw,2.9rem)]" data-reveal>
+        Common questions,<br />common-sense answers.
+      </h2>
+      <Faq class="mt-10" />
+    </div>
+  </section>
+
+  <!-- ─── Close ───────────────────────────────────────────────────────── -->
+  <section class="relative overflow-hidden bg-brand-700 px-5 py-20 text-center text-white sm:py-24">
+    <div
+      class="pointer-events-none absolute inset-0 opacity-[0.15]"
+      style="background-image: radial-gradient(circle at 20% 25%, white 1px, transparent 1px), radial-gradient(circle at 74% 65%, white 1px, transparent 1px); background-size: 48px 48px, 66px 66px;"
+    >
+    </div>
+    <div class="shell-narrow relative">
+      <h2 class="display text-[clamp(2rem,5.5vw,3.4rem)]" style="color:#ffffff" data-reveal>
+        Reply to every comment.<br />
+        Capture every lead.<br />
+        In your sleep.
+      </h2>
+      <p class="mx-auto mt-6 max-w-md text-[16px] leading-[1.7] text-white/80" data-reveal>
+        Free to start, no card needed. Your first automation takes about a minute.
+      </p>
+      <div class="mt-9 flex flex-wrap justify-center gap-3" data-reveal>
+        <a href={SIGNUP_URL} class="btn btn-light px-7 py-3.5 text-[15px]">Start free</a>
+        <a
+          href="/pricing"
+          class="btn px-7 py-3.5 text-[15px] text-white ring-1 ring-inset ring-white/35 hover:bg-white/10"
+        >
+          Compare plans
+        </a>
+      </div>
+      <p class="mt-6 text-[13px] text-white/65">
+        Built on Meta's official API · Cancel any time
+      </p>
+    </div>
+  </section>
+</Base>

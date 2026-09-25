@@ -1,0 +1,266 @@
+@import 'tailwindcss';
+
+/*
+ * LeadWave's design language.
+ *
+ * Deep teal rather than the violet every automation tool has settled on — it
+ * also keeps Messenger's own blue unambiguous, so when you see blue on this
+ * site you are looking at Messenger, not at us.
+ *
+ * Headings breathe: 1.1 line-height on the display face rather than the 0.95
+ * that is fashionable and hard to read past two lines. Body copy is a solid
+ * colour, never an opacity of the ink, because text at 65% opacity over a
+ * tinted band is a different, worse colour than the same text on white.
+ */
+
+@theme {
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --font-display: 'Anton', 'Geist', sans-serif;
+
+  /* ── Ink: solid values, so text is the same colour on any band ── */
+  --color-ink: #121a1f;
+  --color-body: #47555f;
+  --color-muted: #6c7c86;
+  --color-faint: #93a1a9;
+
+  /* ── Surfaces: low-saturation tints, never a flat white page ── */
+  --color-paper: #ffffff;
+  --color-mist: #f4f8f7;   /* teal-tinted, the default band */
+  --color-sand: #faf7f2;   /* warm, for the alternate band */
+  --color-slate-tint: #f3f6f8;
+
+  /* ── Brand: teal ── */
+  --color-brand-50: #eefaf7;
+  --color-brand-100: #d5f2ec;
+  --color-brand-200: #ade4da;
+  --color-brand-300: #78cfc2;
+  --color-brand-400: #45b2a4;
+  --color-brand-500: #26958a;
+  --color-brand-600: #157a70;
+  --color-brand-700: #10635c;
+  --color-brand-800: #124f4a;
+  --color-brand-900: #12423e;
+
+  /* ── Accent: the one urgent thing on a screen ── */
+  --color-amber-accent: #e2952c;
+  --color-amber-soft: #fdf3e2;
+
+  /* Messenger's own colours, used only when depicting Messenger. */
+  --color-messenger: #0084ff;
+
+  --radius-card: 20px;
+  --radius-panel: 26px;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-600);
+    color: white;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ─── Type ─────────────────────────────────────────────────────────────── */
+
+@utility display {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  /* Roomier than the 0.95 this genre defaults to. Three lines stay readable. */
+  line-height: 1.1;
+  letter-spacing: -0.012em;
+  font-weight: 400;
+  color: var(--color-ink);
+}
+
+/** For a heading set over two or three short lines — a touch tighter. */
+@utility display-tight {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  color: var(--color-ink);
+}
+
+@utility eyebrow {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+@utility lede {
+  font-size: 17px;
+  line-height: 1.68;
+  color: var(--color-body);
+}
+
+@utility brand-gradient {
+  background-image: linear-gradient(135deg, #1e9184 0%, #10635c 58%, #0d4b46 100%);
+}
+
+@utility messenger-gradient {
+  background-image: linear-gradient(135deg, #00b2ff 0%, #006aff 48%, #a033ff 100%);
+}
+
+/* ─── Structure ────────────────────────────────────────────────────────── */
+
+@layer components {
+  /**
+   * A full-bleed band. Sections alternate paper → mist → paper → sand so the
+   * page has a rhythm you can feel while scrolling, without any band being
+   * loud enough to compete with the content sitting on it.
+   */
+  .band {
+    padding-block: clamp(4rem, 8vw, 7rem);
+    padding-inline: 1.25rem;
+  }
+  .band-mist {
+    background-color: var(--color-mist);
+  }
+  .band-sand {
+    background-color: var(--color-sand);
+  }
+  .band-slate {
+    background-color: var(--color-slate-tint);
+  }
+  /* The one dark band on the page, reserved for the AI section. */
+  .band-ink {
+    background-color: #0f1720;
+    color: #cdd8de;
+  }
+
+  .shell {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 72rem;
+  }
+  .shell-narrow {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 48rem;
+  }
+
+  /** A white card on a tinted band. The page's main structural unit. */
+  .panel {
+    background-color: var(--color-paper);
+    border: 1px solid rgb(18 26 31 / 0.07);
+    border-radius: var(--radius-card);
+    box-shadow:
+      0 1px 2px rgb(18 26 31 / 0.04),
+      0 12px 32px -20px rgb(18 26 31 / 0.18);
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    padding: 0.72rem 1.45rem;
+    font-size: 0.925rem;
+    font-weight: 600;
+    line-height: 1.2;
+    transition:
+      transform 0.15s ease,
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn-primary {
+    background-color: var(--color-brand-600);
+    color: white;
+  }
+  .btn-primary:hover {
+    background-color: var(--color-brand-700);
+  }
+  .btn-dark {
+    background-color: var(--color-ink);
+    color: white;
+  }
+  .btn-dark:hover {
+    background-color: #24323c;
+  }
+  .btn-light {
+    background-color: white;
+    color: var(--color-ink);
+  }
+  .btn-light:hover {
+    background-color: var(--color-brand-50);
+  }
+  .btn-outline {
+    border: 1.5px solid rgb(18 26 31 / 0.16);
+    color: var(--color-ink);
+    background-color: transparent;
+  }
+  .btn-outline:hover {
+    border-color: var(--color-ink);
+    background-color: rgb(18 26 31 / 0.03);
+  }
+}
+
+/* ─── Reveal on scroll ─────────────────────────────────────────────────── */
+
+/*
+ * The hidden state is scoped to `.js` and to `:not(.is-visible)` on purpose.
+ * Without scripting nothing is ever hidden, and once an element is revealed the
+ * hiding rule stops matching it — so there is no cascade battle to lose, and no
+ * way to end up with a page of invisible sections.
+ */
+[data-reveal] {
+  transition:
+    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.js [data-reveal]:not(.is-visible) {
+  opacity: 0;
+  transform: translateY(12px);
+}

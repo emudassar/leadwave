@@ -1,0 +1,209 @@
+@import 'tailwindcss';
+
+/*
+ * LeadWave's design tokens.
+ *
+ * Deep teal base, Messenger's own blue for anything that depicts Messenger, and
+ * warm amber for the one thing on a screen that should feel urgent. Both themes
+ * are defined here rather than as a set of dark: overrides, so a component never
+ * has to know which theme it is in.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', monospace;
+  --font-display: 'Anton', 'Geist', sans-serif;
+
+  /* Brand — teal, matching the marketing site. Kept distinct from Messenger's
+     own blue so "blue" in this UI always means Messenger, never LeadWave. */
+  --color-brand-50: #eefaf7;
+  --color-brand-100: #d5f2ec;
+  --color-brand-200: #ade4da;
+  --color-brand-300: #78cfc2;
+  --color-brand-400: #45b2a4;
+  --color-brand-500: #26958a;
+  --color-brand-600: #157a70;
+  --color-brand-700: #10635c;
+  --color-brand-800: #124f4a;
+  --color-brand-900: #12423e;
+
+  /* Messenger's own blue — used only where we are showing Messenger */
+  --color-messenger: #0084ff;
+  --color-messenger-deep: #006aff;
+  --color-messenger-violet: #a033ff;
+
+  /* Amber: the accent that means "act on this" */
+  --color-amber-accent: #f59e0b;
+
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(15 23 42 / 0.05), 0 20px 40px -20px rgb(15 23 42 / 0.25);
+}
+
+/* ─── Semantic surface tokens ─────────────────────────────────────────────── */
+
+:root {
+  --surface: #f4f8f7;
+  --surface-raised: #ffffff;
+  --surface-sunken: #e9f1ef;
+  --surface-inverse: #0f1720;
+  --line: #dfe9e7;
+  --line-strong: #c7d8d4;
+  --text: #121a1f;
+  --text-muted: #47555f;
+  --text-subtle: #6c7c86;
+  --ring: var(--color-brand-600);
+}
+
+.dark {
+  --surface: #0b1116;
+  --surface-raised: #131c22;
+  --surface-sunken: #080d11;
+  --surface-inverse: #ffffff;
+  --line: #22303a;
+  --line-strong: #2f414d;
+  --text: #eef5f6;
+  --text-muted: #a3b4bd;
+  --text-subtle: #74868f;
+  --ring: var(--color-brand-300);
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+}
+
+/* ─── Base ────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--surface);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-600);
+    color: white;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Thin scrollbars everywhere — the inbox has four of them on one screen. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* ─── Utilities ───────────────────────────────────────────────────────────── */
+
+@utility display {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: -0.012em;
+  /* Roomier than the 0.95 this genre defaults to — headings wrap to two lines
+     on a narrow screen, and at 0.95 those two lines collide. */
+  line-height: 1.1;
+  font-weight: 400;
+}
+
+/* A number that should feel like a headline, not a label. */
+@utility stat-figure {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+@utility brand-gradient {
+  background-image: linear-gradient(135deg, #1e9184 0%, #10635c 58%, #0d4b46 100%);
+}
+
+@utility messenger-gradient {
+  background-image: linear-gradient(135deg, #00b2ff 0%, #006aff 48%, #a033ff 100%);
+}
+
+@layer components {
+  .card {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+  }
+
+  /* The dotted canvas the automation builder sits on. */
+  .builder-canvas {
+    background-image: radial-gradient(var(--line-strong) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+}
+
+@keyframes lw-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-fade-up {
+  animation: lw-fade-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes lw-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(21 122 112 / 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgb(21 122 112 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(21 122 112 / 0);
+  }
+}
+
+.animate-pulse-ring {
+  animation: lw-pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

@@ -1,0 +1,227 @@
+---
+import Base from '@/layouts/Base.astro';
+import Pricing from '@/components/Pricing.astro';
+import Faq from '@/components/Faq.astro';
+import { FEATURES, PLANS, PLAN_DEFINITIONS, hasFeature, type Feature } from '@leadwave/shared';
+import { SIGNUP_URL } from '@/lib';
+
+/** Grouped the way someone comparing plans actually thinks about them. */
+const GROUPS: Array<{ title: string; features: Feature[] }> = [
+  {
+    title: 'Triggers',
+    features: [
+      'trigger_comment',
+      'trigger_story',
+      'trigger_dm_keyword',
+      'trigger_ice_breaker',
+      'trigger_next_post',
+    ],
+  },
+  {
+    title: 'What you can send',
+    features: [
+      'action_product_carousel',
+      'action_follow_gate',
+      'action_lead_capture_email',
+      'action_lead_capture_phone',
+      'action_follow_up',
+      'multiple_button_links',
+      'schedule_messages',
+    ],
+  },
+  { title: 'Tools', features: ['retrigger', 'lifetime_analytics', 'remove_branding'] },
+  {
+    title: 'Link in bio',
+    features: [
+      'bio_page',
+      'bio_link_scheduling',
+      'bio_seo_controls',
+      'bio_premium_themes',
+      'bio_multiple_pages',
+    ],
+  },
+  { title: 'LeadWave AI', features: ['ai_replies', 'ai_comments', 'ai_goals', 'ai_knowledge'] },
+  { title: 'Team & data', features: ['team_seats', 'google_sheets', 'meta_ads_export'] },
+];
+
+const LABELS: Partial<Record<Feature, string>> = {
+  trigger_comment: 'Comment → private message',
+  trigger_story: 'Story replies and reactions',
+  trigger_dm_keyword: 'Keyword auto-reply',
+  trigger_ice_breaker: 'Ice breakers',
+  trigger_next_post: 'Watch every post, including future ones',
+  action_product_carousel: 'Product carousel',
+  action_follow_gate: 'Follow Gate',
+  action_lead_capture_email: 'Capture email addresses',
+  action_lead_capture_phone: 'Capture phone numbers',
+  action_follow_up: 'Follow-up nudge',
+  multiple_button_links: 'Three links in one message',
+  retrigger: 'Re-run on old posts',
+  schedule_messages: 'Schedule messages',
+  lifetime_analytics: 'Lifetime analytics',
+  remove_branding: 'Remove LeadWave branding',
+  bio_page: 'Link-in-bio page',
+  bio_link_scheduling: 'Scheduled links',
+  bio_seo_controls: 'SEO controls',
+  bio_premium_themes: 'Premium themes',
+  bio_multiple_pages: 'Multiple bio pages',
+  ai_replies: 'AI replies to messages',
+  ai_comments: 'AI replies to comments',
+  ai_goals: 'AI goals',
+  ai_knowledge: 'AI knowledge base',
+  team_seats: 'Team seats',
+  google_sheets: 'Google Sheets sync',
+  meta_ads_export: 'Meta Ads audience export',
+};
+
+const schema = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: 'LeadWave',
+  description: 'Facebook Messenger automation for Pages.',
+  offers: PLANS.map((id) => ({
+    '@type': 'Offer',
+    name: PLAN_DEFINITIONS[id].name,
+    price: String(PLAN_DEFINITIONS[id].priceMonthlyUsd),
+    priceCurrency: 'USD',
+  })),
+});
+---
+
+<Base
+  title="Pricing — LeadWave"
+  description="Start free with 1,000 messages a month, no card. Pro from $9/mo, AI replies from $14/mo, agencies from $29/mo. Every plan includes click tracking."
+  schema={schema}
+>
+  <section class="px-5 pb-14 pt-16 text-center">
+    <p class="eyebrow text-faint" data-reveal>Pricing</p>
+    <h1 class="display mx-auto mt-3 max-w-3xl text-[clamp(2.4rem,7vw,4.4rem)]" data-reveal>
+      Honest pricing.<br />No contact-count traps.
+    </h1>
+    <p class="mx-auto mt-5 max-w-xl text-[15.5px] leading-relaxed text-body" data-reveal>
+      Most tools charge you more as your audience grows, whether or not you message
+      them. We charge for the Pages you run and the AI you use. Nothing else.
+    </p>
+  </section>
+
+  <section class="px-5 pb-16">
+    <div class="mx-auto max-w-6xl">
+      <Pricing />
+    </div>
+  </section>
+
+  <!-- ─── Full comparison ──────────────────────────────────────────────── -->
+  <section class="bg-sand px-5 py-16">
+    <div class="mx-auto max-w-4xl">
+      <h2 class="display text-[clamp(1.8rem,4.5vw,2.8rem)]" data-reveal>
+        Everything, side by side.
+      </h2>
+      <p class="mt-3 text-[14px] text-muted" data-reveal>
+        Generated from the same table the product enforces, so this page cannot
+        drift out of date.
+      </p>
+
+      <div class="mt-8 overflow-x-auto rounded-2xl border border-ink/8 bg-white">
+        <table class="w-full min-w-2xl text-[13px]">
+          <thead>
+            <tr class="border-b border-ink/8 bg-sand/60">
+              <th class="px-5 py-3 text-left font-semibold">Feature</th>
+              {
+                PLANS.map((id) => (
+                  <th class="w-24 px-3 py-3 text-center font-semibold">
+                    {PLAN_DEFINITIONS[id].name}
+                  </th>
+                ))
+              }
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="px-5 pb-1 pt-4 eyebrow text-faint" colspan="5">Limits</td>
+            </tr>
+            {
+              (
+                [
+                  ['Facebook Pages', (p: any) => p.limits.connectedPages],
+                  ['Messages a month', (p: any) => p.limits.messagesPerMonth],
+                  ['Contacts', (p: any) => p.limits.contacts],
+                  ['Automations', (p: any) => p.limits.automations],
+                  ['AI credits a month', (p: any) => p.limits.aiCreditsPerMonth || null],
+                  ['Team seats', (p: any) => p.limits.teamSeats],
+                ] as const
+              ).map(([label, read]) => (
+                <tr class="border-t border-ink/6">
+                  <td class="px-5 py-2 text-body">{label}</td>
+                  {PLANS.map((id) => {
+                    const value = read(PLAN_DEFINITIONS[id]);
+                    return (
+                      <td class="px-3 py-2 text-center font-mono text-[12px]">
+                        {value === null
+                          ? label.startsWith('AI')
+                            ? '—'
+                            : '∞'
+                          : new Intl.NumberFormat('en-US').format(value)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
+            }
+
+            {
+              GROUPS.map((group) => (
+                <>
+                  <tr>
+                    <td class="px-5 pb-1 pt-5 eyebrow text-faint" colspan="5">
+                      {group.title}
+                    </td>
+                  </tr>
+                  {group.features
+                    .filter((feature) => FEATURES.includes(feature))
+                    .map((feature) => (
+                      <tr class="border-t border-ink/6">
+                        <td class="px-5 py-2 text-body">{LABELS[feature] ?? feature}</td>
+                        {PLANS.map((id) => (
+                          <td class="px-3 py-2 text-center">
+                            {hasFeature(id, feature) ? (
+                              <svg
+                                viewBox="0 0 20 20"
+                                class="mx-auto size-4 text-brand-700"
+                                fill="currentColor"
+                                aria-hidden="true"
+                              >
+                                <path d="M8.3 13.4 4.9 10l-1.4 1.4 4.8 4.8 9-9L15.9 5.8Z" />
+                              </svg>
+                            ) : (
+                              <span class="text-ink/25">—</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                </>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="px-5 py-16">
+    <div class="mx-auto max-w-3xl">
+      <h2 class="display text-center text-[clamp(1.8rem,4.5vw,2.8rem)]" data-reveal>
+        Questions about price.
+      </h2>
+      <Faq class="mt-8" schema={false} />
+    </div>
+  </section>
+
+  <section class="messenger-gradient px-5 py-16 text-center text-white">
+    <h2 class="display mx-auto max-w-2xl text-[clamp(2rem,6vw,3.4rem)]" data-reveal>
+      Start on free.<br />Decide later.
+    </h2>
+    <a href={SIGNUP_URL} class="btn btn-light mt-7 px-7 py-3.5 text-[15px]">Start free</a>
+    <p class="mt-4 text-[12.5px] text-white/65">No card. Upgrade or leave whenever.</p>
+  </section>
+</Base>

@@ -1,0 +1,123 @@
+---
+import Legal from '@/layouts/Legal.astro';
+---
+
+<Legal
+  title="Privacy"
+  description="What LeadWave stores, why, how long for, and how to get it deleted."
+  updated="18 September 2026"
+>
+  <p>
+    LeadWave connects to a Facebook Page you control and handles messages on its
+    behalf. That means we hold some data about you and some data about the people
+    who message your Page. This page says what, and why.
+  </p>
+
+  <h2>What we store about you</h2>
+  <ul>
+    <li>
+      <strong>Your account.</strong> Your name, email address and profile picture,
+      taken from the Google account you signed in with. We never receive your
+      Google password.
+    </li>
+    <li>
+      <strong>Your workspace.</strong> Its name, time zone, plan and the members
+      you invited.
+    </li>
+    <li>
+      <strong>Your Page connection.</strong> The Page's id, name, picture and a
+      long-lived access token, encrypted at rest with AES-256-GCM. A leaked
+      database dump is not, by itself, a leaked set of Facebook Pages.
+    </li>
+    <li>
+      <strong>Sessions.</strong> Only the SHA-256 hash of your session token, so a
+      database read cannot be replayed as a login.
+    </li>
+  </ul>
+
+  <h2>What we store about people who message your Page</h2>
+  <ul>
+    <li>
+      <strong>Their Page-scoped id</strong> — the identifier Facebook gives us for
+      that person on that Page. It does not work on any other Page.
+    </li>
+    <li><strong>Their first and last name and profile picture</strong>, as Facebook supplies them.</li>
+    <li>
+      <strong>The messages</strong> exchanged in that conversation, so your inbox
+      can show the thread.
+    </li>
+    <li>
+      <strong>Anything they gave you deliberately</strong> — an email address or a
+      phone number they sent in response to a prompt.
+    </li>
+    <li>
+      <strong>Link clicks.</strong> The time, a coarse device type and country,
+      and a hashed visitor fingerprint. The hash is enough to tell one person from
+      another for counting purposes; it is not enough to identify anybody.
+    </li>
+  </ul>
+
+  <h2>What we do not do</h2>
+  <ul>
+    <li>We do not sell personal data. Not to advertisers, not to data brokers, not to anyone.</li>
+    <li>We do not use your customers' messages to train a general-purpose AI model.</li>
+    <li>We do not read your Page's messages except to operate the features you switched on.</li>
+    <li>We do not store your Facebook password, because we never receive it.</li>
+  </ul>
+
+  <h2>LeadWave AI</h2>
+  <p>
+    If you enable LeadWave AI, the text of an inbound message, the recent thread
+    context and the knowledge you have written are sent to Google's Gemini API to
+    generate a reply. We send the minimum needed to answer, and we do not send
+    your contact list, your other conversations or your account details. Google's
+    handling of that data is governed by their API terms.
+  </p>
+
+  <h2>How long we keep it</h2>
+  <ul>
+    <li><strong>Conversations and contacts</strong> — for as long as the Page is connected.</li>
+    <li>
+      <strong>Analytics</strong> — 30 days on the free plan, indefinitely on paid
+      plans, matching the retention your plan advertises.
+    </li>
+    <li>
+      <strong>Webhook records</strong> — a short window, long enough to make
+      duplicate deliveries from Facebook harmless.
+    </li>
+    <li>
+      <strong>After you disconnect a Page</strong> — its access token is deleted
+      immediately, and its data is removed within 30 days.
+    </li>
+  </ul>
+
+  <h2>Your rights</h2>
+  <p>
+    You can export your contacts and leads as a CSV from the dashboard at any
+    time, and you can delete your workspace, which removes everything associated
+    with it. If you are in a jurisdiction with a statutory right of access,
+    correction or erasure, the deletion route below satisfies it — see
+    <a href="/data-deletion">data deletion</a>.
+  </p>
+
+  <h2>Cookies</h2>
+  <p>
+    One cookie, for your session, marked httpOnly so scripts on the page cannot
+    read it. There is no advertising cookie and no third-party tracker on this
+    site.
+  </p>
+
+  <h2>Meta</h2>
+  <p>
+    LeadWave uses Meta's official Graph API under the permissions you approved.
+    We are not affiliated with, endorsed by or sponsored by Meta Platforms, Inc.
+    Your use of Facebook and Messenger remains governed by Meta's own terms and
+    privacy policy.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Questions about this policy or a request covered by it — email
+    <a href="mailto:leadwaveonline@gmail.com">leadwaveonline@gmail.com</a>.
+  </p>
+</Legal>

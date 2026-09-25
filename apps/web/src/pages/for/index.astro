@@ -1,0 +1,199 @@
+---
+/**
+ * "Built for" — the audience index.
+ *
+ * Most people arrive asking "is this for me", not "what features does it have",
+ * so this page answers that question first and links to a full playbook for
+ * each kind of business. Creators lead the order: they are the largest group
+ * and the one the product was shaped around.
+ */
+import { getCollection } from 'astro:content';
+import Base from '@/layouts/Base.astro';
+import { SIGNUP_URL } from '@/lib';
+
+const all = (await getCollection('audiences')).sort((a, b) => a.data.order - b.data.order);
+
+const groups = [
+  {
+    id: 'creator',
+    label: 'Creators, sellers & marketers',
+    lead: 'You have the reach already. The gap is the comment nobody answered.',
+    entries: all.filter((entry) => entry.data.group === 'creator'),
+  },
+  {
+    id: 'local',
+    label: 'Local & service businesses',
+    lead: 'The same five questions, several hundred times, while you are working.',
+    entries: all.filter((entry) => entry.data.group === 'local'),
+  },
+];
+
+const schema = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Facebook Messenger automation, built for your business',
+  description:
+    'Playbooks for creators, sellers, agencies, restaurants, salons, clinics and more — the triggers to set, what to capture, and what to leave to a person.',
+  hasPart: all.map((entry) => ({
+    '@type': 'WebPage',
+    name: entry.data.title,
+    url: `/for/${entry.id}`,
+  })),
+});
+---
+
+<Base
+  title="Built for your business — LeadWave"
+  description="Every business uses Messenger differently. These playbooks show exactly how LeadWave fits yours — the triggers to set, the leads to capture, and the questions to leave to a person."
+  schema={schema}
+>
+  <!-- ─── Header ──────────────────────────────────────────────────────── -->
+  <section class="px-5 pb-12 pt-16">
+    <div class="shell">
+      <p class="eyebrow text-brand-700" data-reveal>Built for</p>
+      <h1 class="display mt-3 max-w-3xl text-[clamp(2.3rem,6vw,4rem)]" data-reveal>
+        Messenger automation,<br />built for your business.
+      </h1>
+      <p class="lede mt-5 max-w-2xl" data-reveal>
+        Every business uses Facebook messages differently. Each page below is a
+        full playbook for one kind: the automations that work for that audience,
+        what to capture, and — just as important — what to leave to a person.
+      </p>
+
+      <div class="mt-8 flex flex-wrap items-center gap-3" data-reveal>
+        <a href={SIGNUP_URL} class="btn btn-primary px-7 py-3.5 text-[15px]">Try it free</a>
+        <p class="text-[13px] text-muted">
+          Official Meta API · flat pricing · free plan, no card
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── What these pages cover ──────────────────────────────────────── -->
+  <section class="px-5 pb-4">
+    <div class="shell">
+      <div class="panel p-7" data-reveal>
+        <h2 class="text-[17px] font-semibold text-ink">What these pages cover</h2>
+        <p class="mt-2.5 max-w-3xl text-[14.5px] leading-[1.7] text-body">
+          Each one is a playbook for a single kind of business: the comment-to-DM
+          and keyword automations that work for that audience, what to capture
+          (emails, phone numbers, booking links), how the numbers read afterwards,
+          and where the product should stay out of the way. Pricing is flat —
+          $9/mo Pro, $29/mo Business — so nothing here scales with your follower
+          count.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── The groups ──────────────────────────────────────────────────── -->
+  {
+    groups.map((group, gi) => (
+      <section class={`band ${gi % 2 === 0 ? '' : 'band-sand'}`}>
+        <div class="shell">
+          <p class="eyebrow text-brand-700" data-reveal>
+            Keep exploring
+          </p>
+          <h2 class="display mt-2.5 text-[clamp(1.7rem,4.2vw,2.6rem)]" data-reveal>
+            {group.label}
+          </h2>
+          <p class="mt-3 max-w-xl text-[15px] leading-relaxed text-body" data-reveal>
+            {group.lead}
+          </p>
+
+          <div class="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {group.entries.map((entry, i) => (
+              <a
+                href={`/for/${entry.id}`}
+                class="panel group flex flex-col p-6 transition-all hover:-translate-y-0.5 hover:border-brand-600/35"
+                data-reveal
+                data-reveal-delay={String((i % 3) * 60)}
+              >
+                <p class="eyebrow text-brand-700">{entry.data.eyebrow}</p>
+                <h3 class="mt-2.5 text-[17px] font-semibold leading-[1.4] text-ink">
+                  {entry.data.heading}
+                </h3>
+                <p class="mt-2.5 flex-1 text-[13.5px] leading-relaxed text-body">
+                  {entry.data.description}
+                </p>
+                <span class="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand-700">
+                  Read the playbook
+                  <svg
+                    viewBox="0 0 16 16"
+                    class="size-3.5 transition-transform group-hover:translate-x-1"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M3 8h10M9 4l4 4-4 4"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+    ))
+  }
+
+  <!-- ─── Keep exploring ──────────────────────────────────────────────── -->
+  <section class="band band-mist">
+    <div class="shell">
+      <p class="eyebrow text-brand-700" data-reveal>Keep exploring</p>
+      <div class="mt-5 grid gap-4 sm:grid-cols-3">
+        {
+          [
+            {
+              href: '/use-cases',
+              title: 'Use cases',
+              body: 'Every automation LeadWave runs, feature by feature.',
+            },
+            {
+              href: '/pricing',
+              title: 'Pricing',
+              body: 'Flat plans, no contact-count trap, full comparison table.',
+            },
+            {
+              href: '/faq',
+              title: 'FAQ',
+              body: 'The objections, answered — including the limitations.',
+            },
+          ].map((item, i) => (
+            <a
+              href={item.href}
+              class="panel p-6 transition-all hover:-translate-y-0.5 hover:border-brand-600/35"
+              data-reveal
+              data-reveal-delay={String(i * 60)}
+            >
+              <p class="text-[16px] font-semibold text-ink">{item.title}</p>
+              <p class="mt-2 text-[13.5px] leading-relaxed text-body">{item.body}</p>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="relative overflow-hidden bg-brand-700 px-5 py-20 text-center text-white">
+    <div
+      class="pointer-events-none absolute inset-0 opacity-[0.15]"
+      style="background-image: radial-gradient(circle at 22% 28%, white 1px, transparent 1px), radial-gradient(circle at 76% 68%, white 1px, transparent 1px); background-size: 48px 48px, 66px 66px;"
+    >
+    </div>
+    <div class="shell-narrow relative">
+      <h2 class="display text-[clamp(1.9rem,5.5vw,3.2rem)]" style="color:#ffffff" data-reveal>
+        Not sure which one<br />you are? Start free.
+      </h2>
+      <p class="mx-auto mt-5 max-w-md text-[15.5px] leading-[1.7] text-white/80" data-reveal>
+        The free plan is the fastest way to find out. One Page, 1,000 messages a
+        month, no card.
+      </p>
+      <a href={SIGNUP_URL} class="btn btn-light mt-8 px-7 py-3.5 text-[15px]">Start free</a>
+    </div>
+  </section>
+</Base>

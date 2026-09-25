@@ -1,0 +1,103 @@
+---
+/**
+ * The FAQ.
+ *
+ * Native <details>, so it works with JavaScript off and the answers are in the
+ * HTML for search engines rather than behind a click handler. The questions are
+ * the objections people actually raise, answered straight — including the two
+ * where the honest answer is a limitation.
+ */
+interface Props {
+  class?: string;
+  /** When true, also emits FAQPage structured data. */
+  schema?: boolean;
+}
+const { class: className = '', schema = true } = Astro.props;
+
+const FAQ_ITEMS = [
+  {
+    q: 'Will this get my Facebook Page restricted?',
+    a: "Not if you use it the way it is built. Everything goes through Meta's official Graph API with the permissions you approved on Facebook's own screen — there is no unofficial workaround and we never ask for your password. We also enforce Facebook's own rules for you: the 24-hour messaging window is checked before every send, a comment gets exactly one private reply ever, and all your automations share a per-Page send budget so a viral post cannot burn through your rate limits.",
+  },
+  {
+    q: 'What is the 24-hour window?',
+    a: "Facebook lets a Page reply freely for 24 hours after someone messages it. After that, an ordinary message will not be delivered. LeadWave shows you the countdown on every conversation and refuses to send something that would silently fail — you find out before you write, not after.",
+  },
+  {
+    q: 'Does it work on Reels and videos?',
+    a: 'Yes. A comment automation can watch every post on the Page — including ones you publish later — or only the posts you pick. Reels, videos and photo posts all count.',
+  },
+  {
+    q: 'What is a Follow Gate, and does it really verify a follow?',
+    a: "It offers the link, asks for a follow, and unlocks when they tap a button to confirm. It does not verify the follow, because Facebook exposes no per-person follow signal to apps — anyone claiming otherwise is guessing. We label every one of these 'self-confirmed' everywhere it appears in your numbers, so you are never quietly over-reporting to yourself.",
+  },
+  {
+    q: 'Can I capture emails inside Messenger?',
+    a: "Yes, and it is one tap rather than typing: Messenger offers their profile email as a chip they can send in a single tap. It lands in your contacts with the automation that captured it attached, so you know which post earned which lead.",
+  },
+  {
+    q: 'Do you track link clicks?',
+    a: 'Every link you send becomes a tracked short link automatically, on every plan including the free one. You get total clicks, unique clickers, and per-button and per-carousel-card counts — so you learn which product people tap, not just that somebody tapped.',
+  },
+  {
+    q: 'How does the AI decide when to reply?',
+    a: "Your keyword automations always go first; the AI is only considered when nothing else claimed the message, so nobody gets two replies. It then classifies the message and only answers real questions, buying intent and support issues — greetings and small talk are left alone. It answers only from the knowledge you have written, and when the answer is not there it says so instead of inventing one.",
+  },
+  {
+    q: 'What is an AI credit?',
+    a: "One credit is one AI reply that was actually delivered. Reading a message, classifying it, deciding to stay quiet, evaluating a goal and a send that failed all cost nothing. You are charged after the reply lands, never before.",
+  },
+  {
+    q: 'Is there really a free plan?',
+    a: 'Yes, and it is not a trial. One Page, 1,000 messages a month, 100 contacts, comment and keyword triggers, click tracking and a link-in-bio page — free, permanently, no card. The paid plans exist for when you outgrow it.',
+  },
+  {
+    q: 'Can I schedule a message for later?',
+    a: "On Pro and above, up to seven days out. The window is re-checked at send time rather than when you scheduled it, so if the conversation has gone cold by then the message is held instead of failing quietly.",
+  },
+  {
+    q: 'Does it work with Instagram too?',
+    a: 'LeadWave is built for Facebook Pages and Messenger specifically. Doing one platform properly — its window rules, its comment quirks, its rate limits — beats doing two of them badly.',
+  },
+  {
+    q: 'Can I run this for clients?',
+    a: 'Yes. The Business plan covers ten Pages and up to five team seats, with one inbox across all of them and per-Page separation of contacts, automations and AI knowledge so two clients never share anything.',
+  },
+];
+
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQ_ITEMS.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+});
+---
+
+<div class={className}>
+  <div class="divide-y divide-ink/8 border-y border-ink/8">
+    {
+      FAQ_ITEMS.map((item) => (
+        <details class="group">
+          <summary class="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-[15px] font-medium marker:hidden">
+            {item.q}
+            <svg
+              viewBox="0 0 20 20"
+              class="size-4 shrink-0 text-faint transition-transform group-open:rotate-45"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M9 4h2v12H9z" />
+              <path d="M4 9h12v2H4z" />
+            </svg>
+          </summary>
+          <p class="pb-5 pr-8 text-[14px] leading-relaxed text-body">{item.a}</p>
+        </details>
+      ))
+    }
+  </div>
+</div>
+
+{schema ? <script type="application/ld+json" set:html={jsonLd} /> : null}

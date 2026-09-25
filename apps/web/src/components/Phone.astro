@@ -1,0 +1,188 @@
+---
+/**
+ * A Messenger thread inside a phone.
+ *
+ * The site's whole argument is "here is the thing, working", so this renders
+ * Messenger's real shapes — 18px bubbles, the blue-violet gradient outbound,
+ * button templates as a card with hairline-divided blue rows, quick replies as
+ * outlined pills — rather than an illustration of them.
+ */
+
+export interface Bubble {
+  from: 'page' | 'contact';
+  text?: string;
+  buttons?: string[];
+  quickReplies?: string[];
+  cards?: Array<{ title: string; subtitle?: string; button?: string; hue?: string }>;
+  ai?: boolean;
+}
+
+interface Props {
+  bubbles: Bubble[];
+  pageName?: string;
+  /** Renders the comment strip above the thread, for the comment → DM story. */
+  comment?: { author: string; text: string; reply?: string };
+  class?: string;
+  frame?: boolean;
+}
+
+const {
+  bubbles,
+  pageName = 'Your Page',
+  comment,
+  class: className = '',
+  frame = true,
+} = Astro.props;
+---
+
+<div class={`${frame ? 'rounded-[2.2rem] border-[9px] border-ink bg-white shadow-2xl' : ''} ${className}`}>
+  <div class={frame ? 'overflow-hidden rounded-[1.5rem]' : ''}>
+    {
+      frame ? (
+        <div class="relative flex items-center justify-between px-5 pb-1 pt-2 text-[10.5px] font-semibold text-body">
+          <span>9:41</span>
+          <span class="absolute left-1/2 top-1.5 h-4 w-20 -translate-x-1/2 rounded-full bg-ink" />
+          <span class="flex items-center gap-1">
+            <span class="tracking-tighter">▮▮▮</span>
+            <span class="rounded-[2px] border border-current px-0.5 text-[8px] leading-tight">82</span>
+          </span>
+        </div>
+      ) : null
+    }
+
+    {
+      comment ? (
+        <div class="border-b border-ink/8 bg-sand px-3 py-2.5">
+          <p class="eyebrow mb-1.5 text-faint">Under your post</p>
+          <div class="flex gap-2">
+            <span class="mt-0.5 size-6 shrink-0 rounded-full bg-ink/10" />
+            <div class="min-w-0">
+              <p class="text-[12px]">
+                <span class="font-semibold">{comment.author}</span>{' '}
+                <span class="text-body">{comment.text}</span>
+              </p>
+              {comment.reply ? (
+                <div class="mt-1.5 flex gap-2">
+                  <span class="messenger-gradient mt-0.5 size-5 shrink-0 rounded-full" />
+                  <p class="text-[12px]">
+                    <span class="font-semibold">{pageName}</span>{' '}
+                    <span class="text-body">{comment.reply}</span>
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null
+    }
+
+    <div class="flex items-center gap-2.5 border-b border-ink/8 px-3 py-2.5">
+      <span class="relative">
+        <span class="messenger-gradient block size-8 rounded-full"></span>
+        <span class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-white bg-emerald-500"
+        ></span>
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="block truncate text-[13.5px] font-semibold">{pageName}</span>
+        <span class="block text-[11px] text-faint">Typically replies instantly</span>
+      </span>
+      <svg viewBox="0 0 24 24" class="size-4.5 text-messenger" fill="currentColor" aria-hidden="true">
+        <path
+          d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-6h2Zm0-8h-2V7h2Z"
+        ></path>
+      </svg>
+    </div>
+
+    <div class="space-y-2.5 bg-white px-3 py-3">
+      {
+        bubbles.map((bubble) => {
+          const isPage = bubble.from === 'page';
+          const hasTemplate = Boolean(bubble.buttons?.length);
+          return (
+            <div class={`flex flex-col gap-1 ${isPage ? 'items-start' : 'items-end'}`}>
+              {bubble.cards?.length ? (
+                <div class="-mx-3 flex w-[calc(100%+1.5rem)] gap-2 overflow-x-auto px-3 pb-1">
+                  {bubble.cards.map((card) => (
+                    <div class="w-[150px] shrink-0 overflow-hidden rounded-[14px] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.16)]">
+                      <div
+                        class="h-[84px] w-full"
+                        style={`background: ${card.hue ?? 'linear-gradient(135deg,#e5e7eb,#cbd5e1)'}`}
+                      />
+                      <div class="px-2.5 py-1.5">
+                        <p class="truncate text-[12px] font-semibold">{card.title}</p>
+                        {card.subtitle ? (
+                          <p class="truncate text-[11px] text-muted">{card.subtitle}</p>
+                        ) : null}
+                      </div>
+                      {card.button ? (
+                        <div class="border-t border-ink/8 px-2 py-1.5 text-center text-[12px] font-semibold text-messenger">
+                          {card.button}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {bubble.text && !hasTemplate ? (
+                <div
+                  class={`max-w-[80%] whitespace-pre-line rounded-[18px] px-3 py-2 text-[13.5px] leading-[1.35] ${
+                    isPage ? 'bg-[#f0f0f0] text-ink' : 'messenger-gradient text-white'
+                  }`}
+                >
+                  {bubble.text}
+                </div>
+              ) : null}
+
+              {bubble.text && hasTemplate ? (
+                <div class="max-w-[80%] overflow-hidden rounded-[18px] bg-[#f0f0f0]">
+                  <p class="whitespace-pre-line px-3 py-2 text-[13.5px] leading-[1.35]">
+                    {bubble.text}
+                  </p>
+                  <div class="divide-y divide-ink/8 border-t border-ink/8">
+                    {bubble.buttons?.map((label) => (
+                      <div class="px-3 py-2 text-center text-[13px] font-semibold text-messenger">
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {bubble.ai ? (
+                <p class="px-1 text-[10px] font-medium text-faint">✦ LeadWave AI</p>
+              ) : null}
+
+              {bubble.quickReplies?.length ? (
+                <div class="-mx-3 mt-1 flex w-[calc(100%+1.5rem)] gap-1.5 overflow-x-auto px-3 pb-1">
+                  {bubble.quickReplies.map((label) => (
+                    <span class="shrink-0 rounded-full border border-messenger px-2.5 py-1 text-[12px] font-medium text-messenger">
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })
+      }
+    </div>
+
+    <div class="flex items-center gap-2 border-t border-ink/8 bg-white px-3 py-2">
+      <span class="text-messenger">
+        <svg viewBox="0 0 24 24" class="size-5" fill="none" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+      </span>
+      <span class="flex flex-1 items-center rounded-full bg-ink/5 px-3 py-1.5 text-[12.5px] text-faint">
+        Aa
+      </span>
+      <span class="text-messenger">
+        <svg viewBox="0 0 24 24" class="size-5" fill="currentColor" aria-hidden="true">
+          <path d="M7 11h2v6a2 2 0 0 1-2 2H5v-8Zm12.5 0h-5.2l.7-3.3a1.7 1.7 0 0 0-3.2-1L9 11v8h8.3a2 2 0 0 0 2-1.6l1-4.4a1.6 1.6 0 0 0-1.8-2Z"
+          ></path>
+        </svg>
+      </span>
+    </div>
+  </div>
+</div>

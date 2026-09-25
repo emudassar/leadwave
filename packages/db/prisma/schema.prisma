@@ -1,0 +1,1112 @@
+// LeadWave — Facebook Messenger automation, lead capture and AI replies.
+//
+// A workspace is the billing and ownership container. It holds team members,
+// one or more connected Facebook Pages, and everything those Pages produce.
+// Almost every row below hangs off a ConnectedAccount so that two Pages in the
+// same workspace never share contacts, automations or AI knowledge.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Identity & workspace ────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  avatarUrl     String?
+  googleId      String?  @unique
+  isAdmin       Boolean  @default(false)
+  lastSeenAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships   WorkspaceMember[]
+  sessions      Session[]
+  notes         ContactNote[]
+  sentMessages  Message[]         @relation("MessageSender")
+  auditLogs     AuditLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  userAgent String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+enum Plan {
+  free
+  pro
+  growth
+  business
+}
+
+model Workspace {
+  id                String   @id @default(cuid())
+  name              String
+  /// IANA zone used for scheduling, Sheets timestamps and analytics day boundaries.
+  timezone          String   @default("UTC")
+  plan              Plan     @default(free)
+  /// Set by onboarding; tunes AI copy suggestions and template recommendations.
+  persona           String?
+  onboardedAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  members           WorkspaceMember[]
+  invites           Invite[]
+  connectedAccounts ConnectedAccount[]
+  subscription      Subscription?
+  usageCounters     UsageCounter[]
+  integrations      Integration[]
+  bioPages          BioPage[]
+  auditLogs         AuditLog[]
+}
+
+enum WorkspaceRole {
+  admin
+  manager
+  viewer
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        WorkspaceRole @default(admin)
+  createdAt   DateTime      @default(now())
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model Invite {
+  id          String        @id @default(cuid())
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email       String
+  role        WorkspaceRole @default(manager)
+  token       String        @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@unique([workspaceId, email])
+  @@index([token])
+}
+
+// ─── Billing ─────────────────────────────────────────────────────────────────
+
+enum BillingProvider {
+  paddle
+  lemonsqueezy
+  manual
+}
+
+enum SubscriptionStatus {
+  active
+  trialing
+  past_due
+  paused
+  canceled
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  workspaceId          String             @unique
+  workspace            Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  provider             BillingProvider    @default(paddle)
+  /// Provider-side ids. Nullable while the workspace is on the free plan.
+  providerCustomerId   String?
+  providerSubscriptionId String?          @unique
+  priceId              String?
+  plan                 Plan               @default(free)
+  status               SubscriptionStatus @default(active)
+  interval             String             @default("month") // month | year
+  currency             String             @default("USD")
+  currentPeriodStart   DateTime           @default(now())
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([providerCustomerId])
+}
+
+/// One row per workspace per billing cycle. Reset (not incremented) at rollover,
+/// which is what makes "no rollover, no overage" true by construction.
+model UsageCounter {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  periodStart    DateTime
+  periodEnd      DateTime
+  messagesSent   Int       @default(0)
+  aiCreditsUsed  Int       @default(0)
+  /// Granted on top of the plan allowance (support, promos).
+  aiCreditsBonus Int       @default(0)
+  leadsCaptured  Int       @default(0)
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([workspaceId, periodStart])
+  @@index([workspaceId])
+}
+
+// ─── Connected Facebook Pages ────────────────────────────────────────────────
+
+enum AccountStatus {
+  active
+  /// Token expired or permissions revoked — the user must reconnect.
+  needs_reconnect
+  disabled
+}
+
+model ConnectedAccount {
+  id                String        @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Facebook Page id.
+  pageId            String
+  pageName          String
+  pageUsername      String?
+  pagePictureUrl    String?
+  pageUrl           String?
+  /// Long-lived Page access token, AES-256-GCM encrypted at rest.
+  accessTokenCipher String
+  tokenExpiresAt    DateTime?
+  /// Scopes actually granted, so the UI can explain what is missing.
+  grantedScopes     String[]      @default([])
+  status            AccountStatus @default(active)
+  statusDetail      String?
+  webhookSubscribedAt DateTime?
+  /// Colour used to tag this Page in the unified inbox.
+  color             String        @default("#157A70")
+
+  /// Messenger Profile API state, so we only PUT when it actually changed.
+  profileSyncedAt   DateTime?
+  persistentMenu    Json?
+  greetingText      String?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  automations       Automation[]
+  contacts          Contact[]
+  conversations     Conversation[]
+  leads             Lead[]
+  shortLinks        ShortLink[]
+  savedReplies      SavedReply[]
+  labels            Label[]
+  aiSettings        AiSettings?
+  knowledgeSources  AiKnowledgeSource[]
+  aiGoals           AiGoal[]
+  aiEvents          AiEvent[]
+  retriggerRuns     RetriggerRun[]
+  commentReplies    CommentReply[]
+  integrations      Integration[]
+
+  @@unique([workspaceId, pageId])
+  @@index([pageId])
+  @@index([workspaceId])
+}
+
+// ─── Automations ─────────────────────────────────────────────────────────────
+
+enum TriggerType {
+  comment
+  story_reply
+  story_reaction
+  story_mention
+  dm_keyword
+  ice_breaker
+  welcome
+}
+
+enum AutomationStatus {
+  draft
+  live
+  paused
+}
+
+model Automation {
+  id                 String           @id @default(cuid())
+  connectedAccountId String
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  name               String
+  triggerType        TriggerType
+  status             AutomationStatus @default(draft)
+
+  /// Validated against `automationDefinitionSchema` in @leadwave/shared before
+  /// every write. Holds the trigger config and the ordered step tree.
+  definition         Json
+
+  /// Denormalised from the definition so the webhook hot path can filter in SQL
+  /// instead of parsing every automation's JSON on each event.
+  keywords           String[]         @default([])
+  postIds            String[]         @default([])
+  watchesAllPosts    Boolean          @default(false)
+  watchesNextPost    Boolean          @default(false)
+
+  publishedAt        DateTime?
+  lastTriggeredAt    DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  runs               AutomationRun[]
+  shortLinks         ShortLink[]
+  leads              Lead[]
+  retriggerRuns      RetriggerRun[]
+  followUpJobs       FollowUpJob[]
+  messages           Message[]
+  commentReplies     CommentReply[]
+
+  @@index([connectedAccountId, status])
+  @@index([connectedAccountId, triggerType, status])
+}
+
+enum RunStatus {
+  running
+  /// Parked on a gate or a lead-capture prompt, waiting for the contact.
+  waiting
+  completed
+  failed
+  /// Stopped early — window closed, contact unreachable, automation paused.
+  abandoned
+}
+
+/// One execution of an automation for one contact. The runtime keeps its place
+/// here, so a run can survive a restart and resume where it left off.
+model AutomationRun {
+  id             String       @id @default(cuid())
+  automationId   String
+  automation     Automation   @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  contactId      String
+  contact        Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  status         RunStatus    @default(running)
+  /// Index of the step currently being executed.
+  stepIndex      Int          @default(0)
+  /// What the run is blocked on: "follow_gate" | "ask_email" | "ask_phone".
+  waitingFor     String?
+  waitingSince   DateTime?
+  retryCount     Int          @default(0)
+  /// Scratch space: captured values, gate state, the source comment id.
+  state          Json         @default("{}")
+
+  /// What set this run off, for attribution.
+  sourceType     String       // comment | story_reply | ... | retrigger
+  sourcePostId   String?
+  sourceCommentId String?
+  /// True when produced by a Retrigger backfill rather than live traffic.
+  isBackfill     Boolean      @default(false)
+
+  error          String?
+  startedAt      DateTime     @default(now())
+  completedAt    DateTime?
+
+  @@index([automationId, status])
+  @@index([contactId, status])
+  @@index([status, waitingSince])
+  @@unique([automationId, sourceCommentId])
+}
+
+// ─── Contacts, conversations, messages ───────────────────────────────────────
+
+model Contact {
+  id                 String           @id @default(cuid())
+  connectedAccountId String
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  /// Page-scoped id for the person (PSID). Unique per Page, by design.
+  psid               String
+  firstName          String?
+  lastName           String?
+  profilePicUrl      String?
+  locale             String?
+  timezoneOffset     Int?
+
+  /// Drives every window check. Updated on each inbound message.
+  lastInboundAt      DateTime?
+  lastOutboundAt     DateTime?
+  /// Last time a *human* replied — starts the 48h AI takeover silence.
+  lastHumanReplyAt   DateTime?
+
+  /// Follow Gate state. Facebook exposes no per-user follow signal, so this is
+  /// set when the contact taps the unlock button.
+  followConfirmedAt  DateTime?
+
+  /// Set when the contact asks to stop; excluded from exports and sends.
+  optedOutAt         DateTime?
+  isBlocked          Boolean          @default(false)
+
+  firstSeenAt        DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  conversation       Conversation?
+  runs               AutomationRun[]
+  leads              Lead[]
+  notes              ContactNote[]
+  clicks             LinkClick[]
+  aiEvents           AiEvent[]
+  followUpJobs       FollowUpJob[]
+  commentReplies     CommentReply[]
+
+  @@unique([connectedAccountId, psid])
+  @@index([connectedAccountId, lastInboundAt])
+  @@index([connectedAccountId, firstSeenAt])
+}
+
+model ContactNote {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([contactId])
+}
+
+model Conversation {
+  id                 String           @id @default(cuid())
+  connectedAccountId String
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  contactId          String           @unique
+  contact            Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  lastMessageAt      DateTime         @default(now())
+  lastMessagePreview String?
+  unreadCount        Int              @default(0)
+  isPinned           Boolean          @default(false)
+  isArchived         Boolean          @default(false)
+  /// Silences LeadWave AI in this thread only.
+  aiMutedAt          DateTime?
+  /// True once the AI has replied here at least once — powers the inbox filter.
+  hasAiActivity      Boolean          @default(false)
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  messages           Message[]
+  labels             ConversationLabel[]
+  runs               AutomationRun[]
+
+  @@index([connectedAccountId, isArchived, lastMessageAt])
+  @@index([connectedAccountId, isPinned, lastMessageAt])
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum MessageStatus {
+  /// Queued for the send worker.
+  pending
+  scheduled
+  sent
+  delivered
+  read
+  failed
+  /// Scheduled, then withheld because the window had closed by send time.
+  held
+  canceled
+}
+
+enum MessageSource {
+  contact
+  automation
+  ai
+  human
+  follow_up
+  scheduled
+  retrigger
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  direction      MessageDirection
+  status         MessageStatus    @default(sent)
+  source         MessageSource
+
+  /// Plain text body, already merge-field rendered.
+  text           String?
+  /// Buttons, quick replies, carousel cards, attachments — the rendered payload
+  /// as it was actually sent, so the inbox shows what the contact saw.
+  payload        Json?
+
+  /// Meta's message id, used for dedupe and delivery receipts.
+  externalId     String?          @unique
+  /// Our idempotency key, so a retry can never double-send.
+  idempotencyKey String?          @unique
+
+  automationId   String?
+  automation     Automation?      @relation(fields: [automationId], references: [id], onDelete: SetNull)
+  senderId       String?
+  sender         User?            @relation("MessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  /// Set on AI-generated messages; renders the AI badge and the divider.
+  isAiGenerated  Boolean          @default(false)
+  aiEventId      String?
+
+  /// Scheduling.
+  scheduledFor   DateTime?
+  sentAt         DateTime?
+  failureReason  String?
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([status, scheduledFor])
+  @@index([automationId])
+}
+
+model SavedReply {
+  id                 String           @id @default(cuid())
+  connectedAccountId String
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  title              String
+  body               String
+  /// Typing "/shipping" in the composer inserts it.
+  shortcut           String?
+  usageCount         Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([connectedAccountId])
+}
+
+model Label {
+  id                 String              @id @default(cuid())
+  connectedAccountId String
+  connectedAccount   ConnectedAccount    @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  name               String
+  color              String              @default("#64748B")
+  createdAt          DateTime            @default(now())
+
+  conversations      ConversationLabel[]
+
+  @@unique([connectedAccountId, name])
+}
+
+model ConversationLabel {
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  labelId        String
+  label          Label        @relation(fields: [labelId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@id([conversationId, labelId])
+  @@index([labelId])
+}
+
+// ─── Leads ───────────────────────────────────────────────────────────────────
+
+enum LeadType {
+  email
+  phone
+}
+
+enum LeadSource {
+  automation
+  bio_page
+  ai_goal
+  manual
+}
+
+model Lead {
+  id                 String           @id @default(cuid())
+  connectedAccountId String?
+  connectedAccount   ConnectedAccount? @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  contactId          String?
+  contact            Contact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  type               LeadType
+  /// Normalised: lowercase email, or E.164 phone.
+  value              String
+  /// Exactly as the person typed it, for support and debugging.
+  rawValue           String?
+
+  source             LeadSource       @default(automation)
+  /// Which automation captured it — the attribution the Leads tab shows.
+  automationId       String?
+  automation         Automation?      @relation(fields: [automationId], references: [id], onDelete: SetNull)
+  bioPageId          String?
+  bioPage            BioPage?         @relation(fields: [bioPageId], references: [id], onDelete: SetNull)
+  sourcePostId       String?
+
+  /// Set once the row has been appended to the connected Google Sheet.
+  syncedToSheetsAt   DateTime?
+
+  createdAt          DateTime         @default(now())
+
+  @@unique([connectedAccountId, type, value])
+  @@index([connectedAccountId, createdAt])
+  @@index([automationId])
+  @@index([syncedToSheetsAt])
+}
+
+// ─── Tracked links ───────────────────────────────────────────────────────────
+
+model ShortLink {
+  id                 String            @id @default(cuid())
+  /// The path segment served at ${SHORTLINK_URL}/{slug}.
+  slug               String            @unique
+  targetUrl          String
+
+  connectedAccountId String?
+  connectedAccount   ConnectedAccount? @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  /// Attribution: which automation, which step, which carousel card, which
+  /// button. This is what turns "47 clicks" into "the hoodie got 31".
+  automationId       String?
+  automation         Automation?       @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  stepId             String?
+  cardId             String?
+  buttonIndex        Int?
+
+  bioBlockId         String?
+  bioBlock           BioBlock?         @relation(fields: [bioBlockId], references: [id], onDelete: Cascade)
+
+  /// Set when minted for an AI share-link goal.
+  aiGoalId           String?
+  aiGoal             AiGoal?           @relation(fields: [aiGoalId], references: [id], onDelete: SetNull)
+
+  clickCount         Int               @default(0)
+  uniqueClickCount   Int               @default(0)
+  createdAt          DateTime          @default(now())
+
+  clicks             LinkClick[]
+
+  @@index([automationId])
+  @@index([bioBlockId])
+  @@index([connectedAccountId])
+}
+
+model LinkClick {
+  id          String    @id @default(cuid())
+  shortLinkId String
+  shortLink   ShortLink @relation(fields: [shortLinkId], references: [id], onDelete: Cascade)
+  contactId   String?
+  contact     Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  /// True the first time this contact (or anonymous fingerprint) clicks.
+  isUnique    Boolean   @default(false)
+  device      String?   // mobile | desktop | tablet
+  userAgent   String?
+  referer     String?
+  country     String?
+  /// Hashed IP — enough to dedupe anonymous clicks, not enough to identify.
+  visitorHash String?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([shortLinkId, createdAt])
+  @@index([contactId])
+  @@index([shortLinkId, visitorHash])
+}
+
+// ─── Comment handling ────────────────────────────────────────────────────────
+
+enum CommentReplyKind {
+  /// Private reply sent through the comment -> DM pipeline.
+  private_reply
+  /// Public reply posted under the comment by an automation.
+  public_reply
+  /// Public reply written by LeadWave AI.
+  ai_public_reply
+}
+
+/// One row per comment we have acted on. This is the dedupe ledger that makes
+/// "one private reply per comment, ever" and "one AI reply per commenter per
+/// post, ever" true even across Retrigger runs and restarts.
+model CommentReply {
+  id                 String           @id @default(cuid())
+  connectedAccountId String
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  commentId          String
+  postId             String
+  /// The commenter's Page-scoped id, when Meta gives us one.
+  commenterId        String?
+  contactId          String?
+  contact            Contact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  kind               CommentReplyKind
+  automationId       String?
+  automation         Automation?      @relation(fields: [automationId], references: [id], onDelete: SetNull)
+
+  /// Meta's id for the reply we posted, so it can be deleted from Activity.
+  externalReplyId    String?
+  commentText        String?
+  replyText          String?
+  commentCreatedAt   DateTime?
+
+  createdAt          DateTime         @default(now())
+
+  @@unique([commentId, kind])
+  @@index([connectedAccountId, postId])
+  @@index([postId, commenterId])
+}
+
+// ─── Retrigger ───────────────────────────────────────────────────────────────
+
+enum RetriggerStatus {
+  scanning
+  ready
+  running
+  paused
+  completed
+  failed
+}
+
+model RetriggerRun {
+  id                 String           @id @default(cuid())
+  connectedAccountId String
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  automationId       String
+  automation         Automation       @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  postId             String
+  status             RetriggerStatus  @default(scanning)
+
+  /// Live progress, surfaced in the drawer while it works through the backlog.
+  scannedCount       Int              @default(0)
+  matchedCount       Int              @default(0)
+  sentCount          Int              @default(0)
+  skippedCount       Int              @default(0)
+  failedCount        Int              @default(0)
+  /// Why rows were skipped: already replied, too old, opted out.
+  skipBreakdown      Json             @default("{}")
+
+  /// Graph paging cursor, so a long scan can resume.
+  cursor             String?
+  error              String?
+
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([automationId, status])
+  @@index([connectedAccountId, createdAt])
+}
+
+// ─── Follow-up nudges ────────────────────────────────────────────────────────
+
+enum FollowUpStatus {
+  scheduled
+  sent
+  /// The contact replied or clicked — cancelled before it ever went out.
+  canceled
+  failed
+  /// The window had closed by send time.
+  skipped
+}
+
+model FollowUpJob {
+  id           String         @id @default(cuid())
+  automationId String
+  automation   Automation     @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  contactId    String
+  contact      Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  runId        String?
+
+  stepId       String
+  dueAt        DateTime
+  status       FollowUpStatus @default(scheduled)
+
+  /// Snapshot of what to send, so editing the automation later can't rewrite a
+  /// nudge that is already in flight.
+  payload      Json
+
+  /// Set at send time from the live re-check, for the activity log.
+  canceledReason String?
+  sentAt       DateTime?
+  createdAt    DateTime       @default(now())
+
+  @@unique([automationId, contactId, stepId])
+  @@index([status, dueAt])
+}
+
+// ─── Link-in-bio ─────────────────────────────────────────────────────────────
+
+model BioPage {
+  id          String      @id @default(cuid())
+  workspaceId String
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Served at ${WEB_URL}/u/{handle}.
+  handle      String      @unique
+  displayName String
+  bio         String?
+  avatarUrl   String?
+
+  theme       String      @default("clean")
+  /// Theme overrides: accent colour, font, button shape, background image.
+  themeConfig Json        @default("{}")
+
+  isPublished Boolean     @default(false)
+  showBranding Boolean    @default(true)
+
+  /// Pro: SEO controls.
+  seoTitle       String?
+  seoDescription String?
+  seoImageUrl    String?
+  seoNoIndex     Boolean  @default(false)
+
+  viewCount   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  blocks      BioBlock[]
+  views       BioPageView[]
+  leads       Lead[]
+
+  @@index([workspaceId])
+}
+
+enum BioBlockType {
+  link
+  header
+  text
+  image
+  video
+  socials
+  email_capture
+}
+
+model BioBlock {
+  id         String       @id @default(cuid())
+  bioPageId  String
+  bioPage    BioPage      @relation(fields: [bioPageId], references: [id], onDelete: Cascade)
+
+  type       BioBlockType
+  position   Int
+  isVisible  Boolean      @default(true)
+
+  title      String?
+  subtitle   String?
+  url        String?
+  imageUrl   String?
+  /// Per-type extras: socials list, capture prompt, embed id, icon override.
+  config     Json         @default("{}")
+
+  /// Pro: scheduled appearance. Null on either side means "no bound".
+  visibleFrom  DateTime?
+  visibleUntil DateTime?
+
+  clickCount Int          @default(0)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  shortLinks ShortLink[]
+
+  @@index([bioPageId, position])
+}
+
+model BioPageView {
+  id          String   @id @default(cuid())
+  bioPageId   String
+  bioPage     BioPage  @relation(fields: [bioPageId], references: [id], onDelete: Cascade)
+  device      String?
+  referer     String?
+  country     String?
+  visitorHash String?
+  createdAt   DateTime @default(now())
+
+  @@index([bioPageId, createdAt])
+}
+
+// ─── LeadWave AI ─────────────────────────────────────────────────────────────
+
+enum LanguageMode {
+  match_sender
+  fixed
+}
+
+enum CommentScope {
+  recent_posts
+  selected_posts
+}
+
+model AiSettings {
+  id                 String           @id @default(cuid())
+  connectedAccountId String           @unique
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  /// Two toggles, plus one global kill switch.
+  repliesEnabled     Boolean          @default(false)
+  commentsEnabled    Boolean          @default(false)
+  globallyPaused     Boolean          @default(false)
+
+  /// Behaviour.
+  role               String?          // "Wedding photographer in Jaipur"
+  brandVoice         String?          // generated, then edited
+  guardrails         String[]         @default([])
+  languageMode       LanguageMode     @default(match_sender)
+  fixedLanguage      String?
+
+  /// AI comment scope.
+  commentScope       CommentScope     @default(recent_posts)
+  scopedPostIds      String[]         @default([])
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+enum KnowledgeSourceType {
+  link
+  text
+  interview
+}
+
+model AiKnowledgeSource {
+  id                 String              @id @default(cuid())
+  connectedAccountId String
+  connectedAccount   ConnectedAccount    @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  type               KnowledgeSourceType
+  title              String
+  /// The extracted, user-editable text. This — and only this — is what the
+  /// generator is allowed to answer from.
+  content            String
+  charCount          Int                 @default(0)
+  sourceUrl          String?
+  lastScannedAt      DateTime?
+  isEnabled          Boolean             @default(true)
+
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([connectedAccountId])
+}
+
+enum GoalType {
+  share_link
+  capture_lead
+  grow_followers
+}
+
+enum GoalStatus {
+  live
+  paused
+}
+
+model AiGoal {
+  id                 String           @id @default(cuid())
+  connectedAccountId String
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  type               GoalType
+  status             GoalStatus       @default(live)
+  /// share_link: the destination. capture_lead: which field to ask for.
+  config             Json             @default("{}")
+
+  /// Counters written from our own instrumentation only — link clicks, contact
+  /// fields, confirmed follows. Never self-reported by the model.
+  attemptedCount     Int              @default(0)
+  successCount       Int              @default(0)
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  shortLinks         ShortLink[]
+  events             AiEvent[]
+
+  @@index([connectedAccountId, status])
+}
+
+enum AiEventKind {
+  message_reply
+  comment_reply
+  /// A comment reply plus the private message carrying the link — one credit.
+  comment_funnel
+  message_skip
+  comment_skip
+}
+
+/// The receipts. One row per decision the AI made, including the ones where it
+/// decided to stay quiet. Skips cost nothing and are still logged in full.
+model AiEvent {
+  id                 String           @id @default(cuid())
+  connectedAccountId String
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  contactId          String?
+  contact            Contact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  conversationId     String?
+
+  kind               AiEventKind
+  /// The classifier's verdict: a MessageLabel or a CommentLabel.
+  label              String?
+  /// Set on skips; one of SKIP_REASONS.
+  skipReason         String?
+
+  /// What came in, and what went out.
+  triggerText        String?
+  replyText          String?
+
+  goalId             String?
+  goal               AiGoal?          @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  /// Resolved later by the goal evaluator, not by the model.
+  goalSucceededAt    DateTime?
+
+  /// Comment context, so Activity can offer "delete this reply".
+  postId             String?
+  commentId          String?
+  externalReplyId    String?
+
+  creditsCharged     Int              @default(0)
+  /// Model id and token counts, for cost tracking and debugging.
+  modelMeta          Json?
+
+  createdAt          DateTime         @default(now())
+
+  @@index([connectedAccountId, createdAt])
+  @@index([connectedAccountId, kind, createdAt])
+  @@index([goalId])
+  @@index([contactId])
+}
+
+enum CreditLedgerReason {
+  message_reply
+  comment_reply
+  comment_funnel
+  cycle_reset
+  plan_change
+  admin_grant
+  admin_revoke
+}
+
+/// Append-only. The usage counter is the fast read; this is the audit trail that
+/// explains every number on it.
+model AiCreditLedger {
+  id          String             @id @default(cuid())
+  workspaceId String
+  /// Negative for spend, positive for grants and resets.
+  delta       Int
+  reason      CreditLedgerReason
+  aiEventId   String?
+  note        String?
+  createdAt   DateTime           @default(now())
+
+  @@index([workspaceId, createdAt])
+}
+
+// ─── Integrations ────────────────────────────────────────────────────────────
+
+enum IntegrationType {
+  google_sheets
+}
+
+model Integration {
+  id                 String            @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Sheets are configured per Page, so agencies can keep clients separate.
+  connectedAccountId String?
+  connectedAccount   ConnectedAccount? @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  type               IntegrationType
+  isEnabled          Boolean           @default(true)
+
+  /// OAuth tokens, encrypted at rest.
+  accessTokenCipher  String?
+  refreshTokenCipher String?
+  tokenExpiresAt     DateTime?
+
+  /// Sheets: spreadsheetId, spreadsheetName, tab strategy.
+  config             Json              @default("{}")
+
+  lastSyncAt         DateTime?
+  lastError          String?
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@unique([connectedAccountId, type])
+  @@index([workspaceId])
+}
+
+// ─── Platform plumbing ───────────────────────────────────────────────────────
+
+/// Meta redelivers webhooks. This table makes every handler idempotent: we
+/// record the event id first, and a duplicate insert simply stops the work.
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  /// Stable fingerprint of the delivery (message id, comment id, or a hash).
+  eventKey    String   @unique
+  object      String
+  field       String?
+  pageId      String?
+  payload     Json
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([pageId, createdAt])
+  @@index([processedAt])
+}
+
+model AuditLog {
+  id          String     @id @default(cuid())
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?      @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  action      String
+  targetType  String?
+  targetId    String?
+  metadata    Json?
+  ip          String?
+  createdAt   DateTime   @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+// ─── Founder analytics ──────────────────────────────────────────────────────
+
+/**
+ * One row per UTC day, upserted by the maintenance sweep. Signups and other
+ * per-day counts are always derivable from `createdAt` columns, but MRR is a
+ * point-in-time snapshot of `Subscription` — nothing else remembers what it
+ * was yesterday. This is what makes the admin dashboard's MRR-over-time chart
+ * real (from the day this shipped, onward) instead of reconstructed.
+ */
+model MetricSnapshot {
+  id                   String   @id @default(cuid())
+  day                  DateTime @unique
+  totalUsers           Int
+  totalWorkspaces      Int
+  activeSubscriptions  Int
+  mrrCents             Int
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
