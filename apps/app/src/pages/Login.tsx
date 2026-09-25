@@ -9,7 +9,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ShieldCheck } from 'lucide-react';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, API_ORIGIN } from '@/lib/api';
 import { Button } from '@/components/ui';
 import { MessengerThread, type PreviewBubble } from '@/components/MessengerPreview';
 
@@ -107,7 +107,7 @@ export function LoginPage(): React.ReactElement {
             variant="secondary"
             className="mt-7 w-full"
             onClick={() => {
-              window.location.href = '/api/v1/auth/google?next=/home';
+              window.location.href = `${API_ORIGIN}/api/v1/auth/google?next=/home`;
             }}
           >
             <svg viewBox="0 0 24 24" className="size-4.5" aria-hidden>

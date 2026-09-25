@@ -31,7 +31,15 @@ export class ApiError extends Error {
   }
 }
 
-const BASE = '/api/v1';
+/**
+ * In dev the Vite proxy forwards same-origin `/api` requests to the local API,
+ * so this stays relative. In production the dashboard and the API are on
+ * separate subdomains (Cloudflare Pages + Render), so a build-time origin is
+ * required — CORS and the session cookie's `SameSite=None` are already set up
+ * for exactly this cross-origin shape.
+ */
+export const API_ORIGIN = import.meta.env.VITE_API_URL ?? '';
+const BASE = `${API_ORIGIN}/api/v1`;
 
 type Query = Record<string, string | number | boolean | null | undefined>;
 
