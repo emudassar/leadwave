@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./dist/index.js"
   },
   "scripts": {
     "generate": "dotenv -e ../../.env -- prisma generate",
@@ -16,7 +16,7 @@
     "studio": "dotenv -e ../../.env -- prisma studio",
     "validate": "dotenv -e ../../.env -- prisma validate",
     "seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
-    "build": "dotenv -e ../../.env -- prisma generate",
+    "build": "dotenv -e ../../.env -- prisma generate && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
