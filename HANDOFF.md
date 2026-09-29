@@ -282,6 +282,15 @@ plainly when they are missing.
   queue workers, send rate-limit buckets, and Meta/Google/Sheets OAuth `state` should all
   work now — no more need to run `pnpm infra:up`/Docker/WSL for Redis.
 
+**2026-09-29: Upstash free tier (500k commands/month) ran out 3 days after going live**,
+with no user traffic. Cause: BullMQ's idle defaults (5s long-poll + 30s stalled check) × 12
+queues. Fixed in `apps/api/src/queues/runtime.ts` (`IDLE_OPTIONS`: `drainDelay` 300s,
+`stalledInterval` 5 min; commit e43ec51, local, not pushed yet). Plan: move `REDIS_URL` to a
+**Render Key Value, Free plan, Oregon, maxmemory `noeviction`** (BullMQ requires it). Render's
+form defaults to the $10 plan, so pick $0 explicitly. The free plan has no persistence:
+delayed jobs (follow-ups, gate timeouts) are lost if it restarts; the 10-min maintenance
+sweep re-expires lost gates.
+
 Note: as of 2026-09-18, Google deprecated `gemini-2.5-flash-lite` for new API keys.
 `GEMINI_MODEL_FAST` now uses `gemini-flash-lite-latest` (resolves to `gemini-3.5-flash-lite`)
 instead. Updated in both `.env` and `.env.example`.
