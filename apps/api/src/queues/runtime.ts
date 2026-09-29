@@ -34,6 +34,21 @@ import { rescanKnowledgeSource } from '../services/ai/rescan.js';
  * no separate background-worker service.
  */
 
+/**
+ * How often an idle worker touches Redis. BullMQ's defaults (a 5s long-poll and
+ * a 30s stalled-job check) cost ~12 queues × tens of thousands of commands a
+ * day with zero traffic, which burned through a free Redis tier in three days.
+ *
+ * Neither delays real work: a new job wakes the blocked worker immediately via
+ * its marker key, and a queue holding delayed jobs caps its own block at 10s
+ * regardless of `drainDelay`. A stalled job (worker crashed mid-job) is picked
+ * up within 5 minutes instead of 30s; the maintenance sweep covers the rest.
+ */
+const IDLE_OPTIONS = {
+  drainDelay: 300,
+  stalledInterval: 300_000,
+} as const;
+
 export interface WorkerRuntime {
   workers: Worker[];
 }
@@ -52,7 +67,7 @@ export async function startWorkers(): Promise<WorkerRuntime> {
       async (job) => {
         await handler(job.data, job);
       },
-      { connection, concurrency },
+      { connection, concurrency, ...IDLE_OPTIONS },
     );
 
     worker.on('failed', (job, err) => {
